@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBO Team Match Viewer</title>
+<style>
+:root{
+  --bg:#f7f6f2;--surface:#fff;--surface2:#f0efe9;--border:#e2e1d9;--border2:#c9c8bf;
+  --text:#1a1917;--text2:#5c5b56;--text3:#928f86;
+  --accent:#1a5fa0;--accent2:#e6f0fa;
+  --green:#2d6b0e;--green-bg:#eaf3de;
+  --red:#a02020;--red-bg:#faeded;
+  --r:7px;--rl:11px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1b18;--surface:#252420;--surface2:#2d2c28;--border:#3c3b36;--border2:#4e4d47;
+  --text:#eeede6;--text2:#a5a49c;--text3:#6c6b64;--accent:#7fb4e8;--accent2:#0a2840;
+  --green:#8dc44f;--green-bg:#162f04;--red:#e88080;--red-bg:#3a1010;
+}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Aptos','Aptos Display',Calibri,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6}
+#app{max-width:1160px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:21px;font-weight:400;letter-spacing:-.2px;margin-bottom:5px}
+.sub{color:var(--text3);font-size:13px;font-style:italic;margin-bottom:32px}
+#dropzone{border:1.5px dashed var(--border2);border-radius:var(--rl);padding:40px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:16px;position:relative}
+#dropzone:hover,#dropzone.over{border-color:var(--accent);background:var(--accent2)}
+#dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:32px;margin-bottom:10px}
+.dz-main{font-size:15px;color:var(--text2);margin-bottom:4px}.dz-main b{color:var(--accent)}
+.dz-sub{font-size:12px;color:var(--text3)}
+.or-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.or-row hr{flex:1;border:none;border-top:.5px solid var(--border)}
+.or-row span{font-size:12px;color:var(--text3);white-space:nowrap}
+.paste-area{width:100%;min-height:68px;padding:9px 12px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-family:monospace;font-size:12px;resize:vertical;outline:none}
+.paste-area:focus{border-color:var(--accent);background:var(--surface)}
+.btn{padding:9px 22px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;cursor:pointer;font-family:inherit;font-style:italic;white-space:nowrap;margin-top:8px}
+.btn:hover{opacity:.87}
+.ghost{padding:5px 12px;background:transparent;color:var(--accent);border:.5px solid var(--border2);border-radius:var(--r);font-size:12px;cursor:pointer;font-family:inherit}
+.ghost:hover{background:var(--surface2)}
+.hint{font-size:12px;color:var(--text3);margin-top:10px}
+#status{min-height:22px;margin:14px 0;font-size:13px;color:var(--text2)}
+.err{color:var(--red)!important}
+#results{display:none}
+.mtitle{font-size:18px;font-weight:400;margin-bottom:3px}
+.mmeta{font-size:12px;color:var(--text3);margin-bottom:22px}
+/* Results summary table */
+.summary-wrap{margin-bottom:28px;overflow-x:auto}
+.summary-tbl{border-collapse:collapse;font-size:13px;width:100%;background:var(--surface);border:.5px solid var(--border);border-radius:var(--r)}
+.summary-tbl th{padding:6px 10px;text-align:center;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);border-bottom:1px solid var(--border2);white-space:nowrap}
+.summary-tbl th:first-child{text-align:left}
+.summary-tbl td{padding:4px 10px;text-align:center;border-bottom:.5px solid var(--border);white-space:nowrap}
+.summary-tbl td:first-child{text-align:left}
+.summary-tbl tr:last-child td{border-bottom:none;font-weight:600;background:var(--surface2)}
+.summary-tbl a{color:var(--accent);text-decoration:none}
+.summary-tbl a:hover{text-decoration:underline}
+.sum-pos{color:var(--green);font-weight:500}
+.sum-neg{color:var(--red);font-weight:500}
+.sum-dash{color:var(--text3)}
+.sum-commented a{font-weight:700}
+.reload-btn{font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;text-decoration:underline;text-underline-offset:2px}
+.bnav{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:22px;padding-bottom:18px;border-bottom:.5px solid var(--border)}
+.nb{padding:4px 10px;font-size:12px;font-family:inherit;border:.5px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text2);cursor:pointer}
+.nb:hover{border-color:var(--accent);color:var(--accent)}
+.nb.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.bsec{margin-bottom:52px;scroll-margin-top:16px}
+.bhd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:9px;border-bottom:.5px solid var(--border);flex-wrap:wrap}
+.bnum{font-size:16px;font-weight:400}
+.tag{font-size:11px;padding:2px 9px;border-radius:4px}
+.tnone{background:var(--surface2);color:var(--text3)}
+.tvul{background:var(--red-bg);color:var(--red)}
+.itag{margin-left:auto;font-size:12px;padding:2px 10px;border-radius:4px}
+.ipos{background:var(--green-bg);color:var(--green)}
+.ineg{background:var(--red-bg);color:var(--red)}
+.izero{background:var(--surface2);color:var(--text3)}
+/* hand diagram (static overview) */
+.hdiag{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto auto;gap:4px 10px;margin:0 auto 16px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:500;width:fit-content;max-width:420px;background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);padding:12px 16px}
+.hn{grid-column:2;grid-row:1;text-align:center}
+.hw{grid-column:1;grid-row:2}
+.hctr{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center}
+.he{grid-column:3;grid-row:2;text-align:right}
+.hsd{grid-column:2;grid-row:3;text-align:center}
+.hpos{font-size:10px;font-family:sans-serif;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;margin-bottom:2px}
+.hsuit{font-size:13px;font-weight:500;line-height:1.6;display:flex;gap:4px}.hsuit-s{display:inline-block;width:14px;flex-shrink:0}
+.cmp{width:36px;height:36px;border:.5px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;text-align:center}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+@media(max-width:720px){.tgrid{grid-template-columns:1fr}}
+.tcard{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.tchd{padding:9px 14px;background:var(--surface2);border-bottom:.5px solid var(--border);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tclbl{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);font-family:sans-serif;flex-shrink:0}
+.tcctr{font-size:14px}
+.tcsco{font-size:12px;color:var(--text2);margin-left:auto}
+.tcbd{padding:10px 14px 2px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:12px}
+.pp{color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-family:sans-serif}
+.pn{color:var(--text2);font-style:italic}
+/* viewer tabs */
+.viewer-wrap{border-top:.5px solid var(--border)}
+.viewer-tabs{display:flex;border-bottom:.5px solid var(--border)}
+.vtab{flex:1;padding:7px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-family:sans-serif;color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent}
+.vtab:hover{color:var(--text2)}
+.vtab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.viewer-panel{display:none;padding:12px 14px}
+.viewer-panel.on{display:block}
+/* bidding */
+.btbl{width:100%;border-collapse:collapse;font-size:13px}
+.btbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);padding:2px 6px 4px;font-weight:400;text-align:center;border-bottom:.5px solid var(--border);font-family:sans-serif}
+.btbl td{padding:2px 6px;text-align:center;min-width:38px}
+.btbl tr:not(:last-child) td{border-bottom:.5px dotted var(--border)}
+/* raw play table */
+.phd{display:grid;grid-template-columns:20px repeat(4,1fr);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);font-family:sans-serif;margin-bottom:3px;text-align:center}
+.prow{display:grid;grid-template-columns:20px repeat(4,1fr);font-size:12px;text-align:center;padding:1px 0}
+.prow:nth-child(even){background:var(--surface2);border-radius:3px}
+.tn{color:var(--text3);font-size:10px;font-family:sans-serif}
+/* suit colours */
+.sS{color:var(--text)}.sH{color:var(--red)}.sD{color:#cc5500}.sC{color:#007a00}
+/* comments */
+.ccard{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.cchd{padding:9px 14px;background:var(--surface2);border-bottom:.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);font-family:sans-serif}
+.ccbd{padding:12px 14px}
+.ccgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:680px){.ccgrid{grid-template-columns:1fr}}
+.clbl{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);font-family:sans-serif;margin-bottom:4px}
+textarea{width:100%;padding:7px 10px;border:.5px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text);font-family:inherit;font-size:13px;resize:vertical;min-height:60px;outline:none}
+textarea:focus{border-color:var(--accent);background:var(--surface)}
+.tbar{display:flex;justify-content:flex-end;margin-top:18px;gap:8px}
+.nodata{color:var(--text3);font-style:italic;font-size:13px}
+
+/* ══════════════════════════════════════════
+   BBO-STYLE PLAY VIEWER
+══════════════════════════════════════════ */
+.pv-root{display:flex;flex-direction:column;gap:10px}
+
+/* Controls bar */
+.pv-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0 8px;border-bottom:.5px solid var(--border)}
+.pv-btn{padding:4px 11px;font-size:12px;font-family:sans-serif;background:var(--surface2);color:var(--text2);border:.5px solid var(--border);border-radius:var(--r);cursor:pointer;user-select:none}
+.pv-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pv-btn:disabled{opacity:.3;cursor:not-allowed}
+.pv-status{margin-left:auto;font-size:11px;color:var(--text3);font-family:sans-serif;text-align:right}
+
+/* Table area: compass layout — 3x3 grid, hands on edges, felt center */
+.pv-table{
+  display:grid;
+  grid-template-columns:1fr 180px 1fr;
+  grid-template-rows:auto auto auto;
+  gap:8px;
+  background:#2a5428;
+  border-radius:12px;
+  padding:12px;
+}
+/* North hand: top-center */
+.pv-hand-N{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:center}
+/* West hand: middle-left */
+.pv-hand-W{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:flex-end;justify-content:center}
+/* Center felt: middle-center */
+.pv-felt{grid-column:2;grid-row:2;position:relative;min-height:130px;display:grid;grid-template-columns:40px 1fr 40px;grid-template-rows:40px 1fr 40px;gap:2px}
+/* East hand: middle-right */
+.pv-hand-E{grid-column:3;grid-row:2;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
+/* South hand: bottom-center */
+.pv-hand-S{grid-column:2;grid-row:3;display:flex;flex-direction:column;align-items:center}
+
+/* Seat label */
+.pv-seat-lbl{font-size:10px;font-family:sans-serif;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;text-align:center}
+
+/* Hand cards — horizontal fan */
+.pv-hand-cards{display:flex;flex-wrap:wrap;gap:2px 4px;justify-content:center;max-width:160px}
+.pv-hand-N .pv-hand-cards,.pv-hand-S .pv-hand-cards{justify-content:center}
+.pv-hand-W .pv-hand-cards{justify-content:flex-end}
+.pv-hand-E .pv-hand-cards{justify-content:flex-start}
+
+/* A single card in the hand */
+.pv-hcard{
+  display:inline-flex;align-items:center;
+  background:#fff;border-radius:4px;
+  padding:1px 4px;font-size:12px;font-weight:500;
+  border:1px solid #ddd;line-height:1.4;
+  white-space:nowrap;
+}
+.pv-hcard.played{opacity:.22;text-decoration:line-through;border-color:#ccc}
+.pv-hcard.current{box-shadow:0 0 0 2px #ffd700;border-color:#ffd700;transform:translateY(-3px)}
+
+/* Suit rows within hands (like BBO — one row per suit) */
+.pv-suit-row{display:flex;align-items:center;gap:3px;font-size:13px;font-weight:500;line-height:1.6;white-space:nowrap}
+.pv-suit-row .suit-lbl{font-size:13px;width:14px;flex-shrink:0}
+.pv-hc{font-family:Verdana,Geneva,sans-serif;font-weight:500}
+.pv-hc.played{opacity:.2;text-decoration:line-through}
+
+/* Cards played to current trick — in center felt */
+.felt-N{grid-column:2;grid-row:1;display:flex;align-items:flex-end;justify-content:center}
+.felt-W{grid-column:1;grid-row:2;display:flex;align-items:center;justify-content:flex-end}
+.felt-E{grid-column:3;grid-row:2;display:flex;align-items:center;justify-content:flex-start}
+.felt-S{grid-column:2;grid-row:3;display:flex;align-items:flex-start;justify-content:center}
+.felt-ctr{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center}
+
+.felt-card{
+  background:#fff;border-radius:5px;
+  padding:3px 7px;font-size:14px;font-weight:600;
+  border:2px solid transparent;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);
+  line-height:1.3;
+  transition:transform .12s;
+}
+.felt-card.lead{border-color:#ffd700}
+.felt-card.empty{background:rgba(255,255,255,.1);box-shadow:none;border:1.5px dashed rgba(255,255,255,.2);min-width:36px;min-height:28px}
+.felt-card .sS{color:#111}.felt-card .sH{color:#c0392b}.felt-card .sD{color:#cc5500}.felt-card .sC{color:#007a00}
+
+/* Trick log strip */
+.pv-tricklog{display:flex;gap:4px;flex-wrap:wrap;padding-top:6px;border-top:.5px solid var(--border)}
+.tl-trick{font-size:11px;font-family:sans-serif;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--text3);border:.5px solid var(--border)}
+.tl-trick.done{background:var(--accent2);color:var(--accent);border-color:var(--accent)}
+.tl-trick.cur{background:var(--surface);border-color:var(--border2);color:var(--text2)}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>BBO Team Match Viewer</h1>
+  <p class="sub">Upload a LIN file — both tables side by side with interactive play viewer</p>
+
+  <div id="dropzone" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+    <input type="file" accept=".lin,.txt,.pbn" onchange="fileChosen(event)">
+    <div class="dz-icon">📂</div>
+    <div class="dz-main"><b>Choose a LIN file</b> or drag &amp; drop it here</div>
+    <div class="dz-sub">.lin or .pbn — download from a BBO team match results page</div>
+  </div>
+  <div class="or-row"><hr><span>or paste LIN content</span><hr></div>
+  <textarea class="paste-area" id="linPaste" placeholder="Paste raw LIN text here…"></textarea>
+  <button class="btn" onclick="loadFromPaste()">Parse</button>
+  <p class="hint">To get the LIN: open the BBO team match results page → look for a Download / LIN link → save and upload here.</p>
+  <div style="margin-top:12px"><button class="ghost" onclick="loadFromCloud()" style="font-size:13px;padding:7px 16px">☁ Load from cloud</button> <span style="font-size:12px;color:var(--text3);font-family:sans-serif;margin-left:8px">load a previously saved match from Firebase</span></div>
+  <div id="status"></div>
+
+  <div id="results">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:3px">
+      <div class="mtitle" id="mtitle"></div>
+      <button class="reload-btn" onclick="renameMatch()" style="color:var(--text3)">✎ Rename</button>
+      <button class="reload-btn" onclick="resetUI()">← Load another file</button>
+    </div>
+    <div class="mmeta" id="mmeta"></div>
+    <div class="summary-wrap" id="summaryWrap" style="display:none"></div>
+    <div class="bnav" id="bnav"></div>
+    <div id="bctr"></div>
+    <div class="tbar" style="align-items:center"><span id="fb-status" style="font-size:11px;font-family:sans-serif;color:var(--text3);margin-right:auto"></span><button class="ghost" onclick="loadFromCloud()">☁ Load from cloud</button><button class="ghost" onclick="exportCmts()">Export comments ↓</button><button class="ghost" onclick="saveSession()" style="background:var(--accent);color:#fff;border-color:var(--accent)">💾 Save session</button></div>
+  </div>
+</div>
+<script>
+// Load Firebase SDKs dynamically so we can chain them reliably
+(function(){
+  function loadScript(src,cb){
+    var s=document.createElement('script');s.src=src;
+    s.onload=cb;s.onerror=function(){console.warn('Failed to load',src);cb();};
+    document.head.appendChild(s);
+  }
+  loadScript('https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-app-compat.min.js',function(){
+    loadScript('https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-database-compat.min.js',function(){
+      window._firebaseReady=true;
+      if(window._pendingFbInit)window._pendingFbInit();
+    });
+  });
+})();
+</script>
+<script>
+/* ═══════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════ */
+const SYM={S:'♠',H:'♥',D:'♦',C:'♣'};
+const SC={S:'sS',H:'sH',D:'sD',C:'sC'};
+const MD_DEALER={'1':'S','2':'W','3':'N','4':'E'};
+const HAND_CYCLE=['S','W','N','E'];
+const BID_SEATS=['W','N','E','S'];
+const ALL_POS=['N','E','S','W'];
+const VUL_LABEL={'0':'None','o':'None','-':'None','n':'N/S','e':'E/W','b':'Both'};
+const RANK_ORDER=['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+const IMP_BREAKS=[10,40,80,120,160,210,260,310,360,420,490,590,740,890,1090,1290,1490,1740,1990,2240,2490,2990];
+
+/* ═══════════════════════════════════════════════════════════
+   FIREBASE
+═══════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyCem5EbVUeKJUihyEppP1iPEh6aYNNvKhc",
+  authDomain:"coaching-u26.firebaseapp.com",
+  databaseURL:"https://coaching-u26-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"coaching-u26",
+  storageBucket:"coaching-u26.firebasestorage.app",
+  messagingSenderId:"928921692411",
+  appId:"1:928921692411:web:b95f23533ee39461db685e"
+};
+let fbDb=null;
+let fbMatchKey=null; // e.g. "TM-20875" — set when a match loads
+let fbUnsubscribe=null; // listener cleanup
+
+function fbInit(matchTitle){
+  const doInit=function(){
+    try{
+      if(!window.firebase){console.warn('Firebase SDK not available');setFbStatus('offline');return;}
+      if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+      fbDb=firebase.database();
+      fbMatchKey=(matchTitle||'match').replace(/[^a-zA-Z0-9_-]/g,'-').replace(/-+/g,'-').slice(0,60);
+      fbListen();
+      setFbStatus('connected');
+      if(window._pendingLocalSync){window._pendingLocalSync();delete window._pendingLocalSync;}
+    }catch(e){
+      console.warn('Firebase init failed:',e);
+      setFbStatus('offline');
+    }
+  };
+  if(window._firebaseReady){doInit();}
+  else{window._pendingFbInit=doInit;}
+}
+
+function fbListen(){
+  if(!fbDb||!fbMatchKey)return;
+  if(fbUnsubscribe)fbUnsubscribe();
+  const ref=fbDb.ref('matches/'+fbMatchKey+'/comments');
+  const handler=ref.on('value',snap=>{
+    const data=snap.val()||{};
+    let changed=false;
+    for(const[k,v]of Object.entries(data)){
+      if(comments[k]!==v){comments[k]=v;changed=true;}
+    }
+    if(changed){syncCommentsToDOM();refreshSummary();}
+  });
+  fbUnsubscribe=()=>ref.off('value',handler);
+}
+
+function fbSaveCmt(k,v){
+  if(!fbDb||!fbMatchKey)return;
+  fbDb.ref('matches/'+fbMatchKey+'/comments/'+k).set(v||null);
+}
+
+function fbSaveLin(lin,title){
+  if(!fbDb||!fbMatchKey)return;
+  fbDb.ref('matches/'+fbMatchKey+'/meta').set({lin,title,updated:Date.now()});
+}
+
+function syncCommentsToDOM(){
+  for(const[k,v]of Object.entries(comments)){
+    const el=document.getElementById(k);
+    if(el&&el.value!==v)el.value=v||'';
+  }
+}
+
+function setFbStatus(state){
+  const el=document.getElementById('fb-status');
+  if(!el)return;
+  const cfg={
+    connected:{text:'● Live sync on',color:'var(--green)'},
+    offline:{text:'○ Offline mode',color:'var(--text3)'},
+    saving:{text:'↑ Saving…',color:'var(--accent)'}
+  }[state]||{text:'',color:'var(--text3)'};
+  el.textContent=cfg.text;el.style.color=cfg.color;
+}
+
+let boards={};
+let comments={};
+// Viewer states: key -> {seg, step, owners}
+// step = number of cards dealt so far (0..52 range, multiples of 1)
+// Display mode: show trick until step reaches next multiple of 4 (or user advances past it)
+const VS={};
+
+/* ═══════════════════════════════════════════════════════════
+   DRAG & DROP
+═══════════════════════════════════════════════════════════ */
+function dzOver(e){e.preventDefault();document.getElementById('dropzone').classList.add('over')}
+function dzLeave(){document.getElementById('dropzone').classList.remove('over')}
+function dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer?.files?.[0];if(f)readFile(f)}
+function fileChosen(e){const f=e.target.files?.[0];if(f)readFile(f)}
+function readFile(f){
+  const r=new FileReader();
+  r.onload=ev=>processText(ev.target.result,f.name.replace(/\.[^.]+$/,''));
+  r.onerror=()=>setStatus('Could not read file.',true);
+  r.readAsText(f);
+}
+function loadFromPaste(){
+  const t=document.getElementById('linPaste').value.trim();
+  if(!t){setStatus('Nothing to parse.',true);return;}
+  processText(t,'BBO Team Match');
+}
+function resetUI(){
+  document.getElementById('results').style.display='none';
+  document.getElementById('status').textContent='';
+  document.getElementById('linPaste').value='';
+  document.getElementById('dropzone').querySelector('input[type=file]').value='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HTML HELPERS
+═══════════════════════════════════════════════════════════ */
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function sh(s){return`<span class="${SC[s]}">${SYM[s]}</span>`}
+function ch(c){ // card html: "SA" -> ♠A
+  if(!c)return'';
+  const s=c[0].toUpperCase(),r=c.slice(1).replace('T','10');
+  if(!SC[s])return esc(c);
+  return`<span class="${SC[s]}">${SYM[s]}${r}</span>`;
+}
+function bh(b){ // bid html
+  if(!b)return'';
+  const bl=b.toLowerCase().trim();
+  if(bl==='p'||bl==='pass')return`<span style="color:var(--text3)">p</span>`;
+  // double: x or d; redouble: xx or r
+  if(bl==='xx'||bl==='r')return'<b>XX</b>';
+  if(bl==='x'||bl==='d')return'<b>X</b>';
+  const m=b.match(/^(\d)(N|S|H|D|C)(x{0,2}|d|r)?$/i);
+  if(!m)return esc(b);
+  const su=m[2].toUpperCase();
+  const dbl=(m[3]||'').toLowerCase();
+  const dblHtml=dbl==='xx'||dbl==='r'?'<b>XX</b>':dbl==='x'||dbl==='d'?'<b>X</b>':'';
+  return`${m[1]}${su==='N'?'NT':sh(su)}${dblHtml}`;
+}
+function rankVal(r){const i=RANK_ORDER.indexOf(r);return i===-1?99:i}
+
+/* ═══════════════════════════════════════════════════════════
+   LIN PARSING
+═══════════════════════════════════════════════════════════ */
+function parseHand(str){
+  const h={S:[],H:[],D:[],C:[]};let cur='';
+  for(const c of str){
+    if('SHDC'.includes(c))cur=c;
+    else if(cur&&c!==',')h[cur].push(c==='T'?'10':c);
+  }
+  for(const s of['S','H','D','C'])h[s].sort((a,b)=>rankVal(a)-rankVal(b));
+  return h;
+}
+function isHandEmpty(h){return!h||['S','H','D','C'].every(s=>!h[s]||!h[s].length)}
+function reconstructHand(hands){
+  const ALL=['A','K','Q','J','10','9','8','7','6','5','4','3','2'];
+  const result={S:[],H:[],D:[],C:[]};
+  for(const suit of['S','H','D','C']){
+    const held=new Set();
+    for(const pos of ALL_POS){if(hands[pos])for(const r of(hands[pos][suit]||[]))held.add(r);}
+    result[suit]=ALL.filter(r=>!held.has(r));
+  }
+  return result;
+}
+function deriveContract(bids){
+  let last='',dbl=0;
+  for(const b of bids){
+    const bl=b.toLowerCase();
+    if((bl==='xx'||bl==='r')&&last)dbl=2;
+    else if((bl==='x'||bl==='d')&&last)dbl=1;
+    else if(bl!=='p'&&bl!=='pass'){last=b;dbl=0;}
+  }
+  if(!last)return'Passed';
+  return last+(dbl===2?'XX':dbl===1?'X':'');
+}
+function deriveDeclarer(bids,dealer){
+  if(!bids.length)return'';
+  const di=BID_SEATS.indexOf(dealer);if(di<0)return'';
+  const first={};let lastInfo=null;
+  for(let i=0;i<bids.length;i++){
+    const bl=bids[i].toLowerCase();
+    if(bl==='p'||bl==='x'||bl==='xx'||bl==='d'||bl==='r'||bl==='pass')continue;
+    const m=bids[i].match(/^\d(N|S|H|D|C)/i);if(!m)continue;
+    const pos=BID_SEATS[(di+i)%4];
+    const strain=m[1].toUpperCase();
+    const side=(pos==='N'||pos==='S')?'NS':'EW';
+    const k=side+strain;
+    if(!first[k])first[k]=pos;
+    lastInfo={pos,strain,side};
+  }
+  if(!lastInfo)return'';
+  return first[lastInfo.side+lastInfo.strain]||lastInfo.pos;
+}
+function parseSegment(lin){
+  const r={qx:'',players:{S:'',W:'',N:'',E:''},board:'',vul:'0',dealer:'N',
+            hands:{},bidding:[],play:[],contract:'',declarer:'',tricks:null};
+  const parts=lin.split('|');
+  for(let i=0;i+1<parts.length;i+=2){
+    const tag=parts[i].toLowerCase().trim(),val=parts[i+1]||'';
+    switch(tag){
+      case'qx':r.qx=val;break;
+      case'pn':{const ns=val.split(',');r.players={S:ns[0]||'',W:ns[1]||'',N:ns[2]||'',E:ns[3]||''};break;}
+      case'md':{
+        r.dealer=MD_DEALER[val[0]]||'N';
+        const hs=val.slice(1).split(',');
+        // BBO LIN md| hands are ALWAYS in fixed order: S, W, N, E
+        const MD_ORDER=['S','W','N','E'];
+        for(let h=0;h<hs.length&&h<4;h++)r.hands[MD_ORDER[h]]=parseHand(hs[h]);
+        break;
+      }
+      case'ah':r.board=val.replace(/^Board\s*/i,'').trim();break;
+      case'sv':r.vul=val||'0';break;
+      case'mb':{const bid=val.replace(/!/g,'').trim();if(bid)r.bidding.push(bid);break;}
+      case'pc':{const card=val.trim();if(card)r.play.push(card);break;}
+      case'mc':r.tricks=parseInt(val);break;
+    }
+  }
+  r.contract=deriveContract(r.bidding);
+  r.declarer=deriveDeclarer(r.bidding,r.dealer);
+  const known=ALL_POS.filter(p=>!isHandEmpty(r.hands[p]));
+  if(known.length===3){
+    const missing=ALL_POS.find(p=>isHandEmpty(r.hands[p]));
+    if(missing)r.hands[missing]=reconstructHand(r.hands);
+  }
+  return r;
+}
+function parseLin(linText){
+  const result={};
+  const topPnM=linText.match(/^(?:(?!qx\|).)*pn\|([^|]+)\|/is);
+  const topPlayers=topPnM?topPnM[1].split(','):[];
+
+  // Parse rs| tag — result summary: each entry is e.g. "3DE+1", "4CEx-4", "3SW="
+  // Entries alternate open/closed: index 0=o1, 1=c1, 2=o2, 3=c2, ...
+  const rsM=linText.match(/rs\|([^|]+)\|/i);
+  const rsResults={}; // key: "o1","c1","o2" etc -> {tricks, contract, declarer}
+  if(rsM){
+    rsM[1].split(',').forEach((r,i)=>{
+      const m=r.match(/^(\d)([NSHDC])(E|W|N|S)(x{0,2})?([=+\-]\d*)$/i);
+      if(!m)return;
+      const level=parseInt(m[1]),strain=m[2].toUpperCase(),dec=m[3].toUpperCase();
+      const dbl=(m[4]||'').toUpperCase();
+      const resStr=m[5];
+      const resVal=resStr==='='?0:parseInt(resStr);
+      const tricks=level+6+resVal;
+      const boardNum=Math.floor(i/2)+1;
+      const room=i%2===0?'o':'c';
+      rsResults[room+boardNum]={tricks,contract:level+strain+dbl,declarer:dec};
+    });
+  }
+
+  const segs=linText.split(/(?=qx\|)/i).filter(s=>s.trim());
+  for(const seg of segs){
+    const qm=seg.match(/^qx\|([^|,\n]+)/i);if(!qm)continue;
+    const qxVal=qm[1].trim();
+    const rm=qxVal.match(/^([oc])(\d+)/i);if(!rm)continue;
+    const room=rm[1].toLowerCase(),boardNum=parseInt(rm[2]);
+    if(isNaN(boardNum)||boardNum<1)continue;
+    const parsed=parseSegment(seg);
+    parsed.qx=qxVal;
+    if(topPlayers.length&&!parsed.players.S&&!parsed.players.N)
+      parsed.players={S:topPlayers[0]||'',W:topPlayers[1]||'',N:topPlayers[2]||'',E:topPlayers[3]||''};
+    if(!parsed.board)parsed.board=String(boardNum);
+    // Fill in tricks from rs| if mc| was missing in this segment
+    const rsKey=room+boardNum;
+    if(parsed.tricks===null&&rsResults[rsKey]){
+      parsed.tricks=rsResults[rsKey].tricks;
+    }
+    // Also fill contract/declarer from rs| if bidding parse failed
+    if((!parsed.contract||parsed.contract==='Passed')&&rsResults[rsKey]&&parsed.bidding.length>0){
+      // keep derived contract but use rs tricks
+    }
+    if(!result[boardNum])result[boardNum]={num:boardNum,open:null,closed:null};
+    if(room==='o')result[boardNum].open=parsed;
+    else result[boardNum].closed=parsed;
+  }
+  // Determine canonical teams from first board
+  // Team A = NS pair in open room of board 1 (or earliest board)
+  const nums=Object.keys(result).map(Number).sort((a,b)=>a-b);
+  if(nums.length){
+    const first=result[nums[0]];
+    const ref=first.open||first.closed;
+    if(ref){
+      result._teamA=new Set([ref.players.N,ref.players.S].filter(Boolean));
+      result._teamB=new Set([ref.players.E,ref.players.W].filter(Boolean));
+    }
+  }
+  return result;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCORING
+═══════════════════════════════════════════════════════════ */
+function toImp(diff){
+  const d=Math.abs(diff);let imp=0;
+  for(let i=0;i<IMP_BREAKS.length;i++){if(d>=IMP_BREAKS[i])imp=i+1;else break;}
+  return diff>0?imp:diff<0?-imp:0;
+}
+function isVul(dec,vul){
+  if(!vul||vul==='0'||vul==='o'||vul==='-')return false;
+  const v=vul.toLowerCase();if(v==='b')return true;
+  const ns=dec==='N'||dec==='S';
+  return(v==='n'&&ns)||(v==='e'&&!ns);
+}
+function calcScore(contract,declarer,tricks,vul){
+  if(!contract||contract==='Passed')return 0;
+  if(tricks===null||tricks===undefined)return null;
+  const m=contract.match(/^(\d)(N|S|H|D|C)(X{0,2})/i);if(!m)return null;
+  const level=parseInt(m[1]),strain=m[2].toUpperCase(),dbl=m[3]?m[3].length:0;
+  const V=isVul(declarer,vul),need=level+6,diff=tricks-need;
+  if(diff<0){
+    const u=-diff;
+    if(!dbl)return V?-100*u:-50*u;
+    if(dbl===1){if(V)return-200+Math.max(0,u-1)*-300;if(u===1)return-100;if(u===2)return-300;if(u===3)return-500;return-500+(u-3)*-300;}
+    if(V)return-400+Math.max(0,u-1)*-600;if(u===1)return-200;if(u===2)return-600;if(u===3)return-1000;return-1000+(u-3)*-600;
+  }
+  const P={S:30,H:30,D:20,C:20,N:30};
+  let cp=P[strain]*level+(strain==='N'?10:0);
+  if(dbl===1)cp*=2;else if(dbl===2)cp*=4;
+  let sc=cp;
+  sc+=cp>=100?(V?500:300):50;
+  if(level===6)sc+=V?750:500;else if(level===7)sc+=V?1500:1000;
+  if(dbl===1)sc+=50;else if(dbl===2)sc+=100;
+  if(diff>0){if(!dbl)sc+=diff*P[strain];else if(dbl===1)sc+=diff*(V?200:100);else sc+=diff*(V?400:200);}
+  return sc;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATIC RENDERERS
+═══════════════════════════════════════════════════════════ */
+function renderContract(contract,declarer){
+  if(!contract||contract==='Passed')return`<span style="color:var(--text3)">Passed out</span>`;
+  const m=contract.match(/^(\d)(N|S|H|D|C)(X{0,2})/i);if(!m)return esc(contract);
+  const su=m[2].toUpperCase();
+  return`${m[1]}${su==='N'?'NT':sh(su)}${m[3]?'<b>'+m[3].toUpperCase()+'</b>':''}${declarer?` <span style="color:var(--text2);font-size:12px">by ${declarer}</span>`:''}`;
+}
+function handHtml(pos,hands){
+  const h=hands[pos];
+  if(!h)return`<div class="hpos">${pos}</div><div style="color:var(--text3);font-style:italic;font-size:11px">—</div>`;
+  return`<div class="hpos">${pos}</div>`+['S','H','D','C'].map(s=>`<div class="hsuit"><span class="hsuit-s">${sh(s)}</span><span>${(h[s]||[]).join(' ')||'—'}</span></div>`).join('');
+}
+function renderDiagram(hands){
+  if(!hands||!Object.keys(hands).length)return'';
+  return`<div class="hdiag">
+    <div class="hn">${handHtml('N',hands)}</div>
+    <div class="hw">${handHtml('W',hands)}</div>
+    <div class="hctr"><div class="cmp">N<br>W·E<br>S</div></div>
+    <div class="he">${handHtml('E',hands)}</div>
+    <div class="hsd">${handHtml('S',hands)}</div>
+  </div>`;
+}
+function renderBidding(bids,dealer){
+  if(!bids||!bids.length)return`<span class="nodata">No bidding recorded</span>`;
+  const di=BID_SEATS.indexOf(dealer);if(di<0)return`<span class="nodata">—</span>`;
+  let html=`<table class="btbl"><tr>`;
+  for(const s of BID_SEATS)html+=`<th>${s}</th>`;
+  html+='</tr><tr>';
+  for(let i=0;i<di;i++)html+='<td></td>';
+  let col=di;
+  for(let i=0;i<bids.length;i++){
+    if(col>0&&col%4===0)html+='</tr><tr>';
+    html+=`<td>${bh(bids[i])}</td>`;col++;
+  }
+  while(col%4){html+='<td></td>';col++;}
+  return html+'</tr></table>';
+}
+function renderRawPlay(seg){
+  const play=seg.play;
+  if(!play||!play.length)return`<span class="nodata">No play recorded</span>`;
+  const owners=buildPlayOwners(seg);
+  // Build trick rows: each trick may have a different lead, show pos above each card
+  let html='';
+  for(let t=0;t<play.length;t+=4){
+    const trick=play.slice(t,t+4);
+    const trickOwners=owners.slice(t,t+4);
+    const header=trickOwners.map(p=>`<div>${p||'?'}</div>`).join('');
+    const cards=trick.map(card=>`<div>${card?ch(card):''}</div>`).join('');
+    html+=`<div class="prow"><div class="tn">${Math.floor(t/4)+1}</div>${cards}</div>`;
+    // Add owner row before trick if lead changed
+  }
+  // Simpler: single header won't work since lead changes — use inline pos labels
+  html='';
+  for(let t=0;t<play.length;t+=4){
+    const trick=play.slice(t,t+4);
+    const trickOwners=owners.slice(t,t+4);
+    if(t===0||(trickOwners[0]!==owners[t-4])){
+      // Show position labels for this trick's order
+      html+=`<div class="phd"><div></div>${trickOwners.map(p=>`<div>${p||'?'}</div>`).join('')}</div>`;
+    }
+    const cards=trick.map(card=>`<div>${card?ch(card):''}</div>`).join('');
+    html+=`<div class="prow"><div class="tn">${Math.floor(t/4)+1}</div>${cards}</div>`;
+  }
+  return html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INTERACTIVE PLAY VIEWER — BBO STYLE
+   
+   Step model:
+   - step 0  = start of board, trick 1, 0 cards played
+   - step 1  = 1st card of trick 1 visible on felt
+   - step 2  = 2nd card visible
+   - step 3  = 3rd card visible
+   - step 4  = all 4 cards visible (trick complete, still showing)
+   - step 5  = trick 1 cleared, 1st card of trick 2 on felt
+   ...and so on.
+   
+   So total steps = 13 tricks * 5 steps-per-trick = 65
+   (4 cards + 1 "clear" step per trick)
+   
+   Card index in play[] = Math.max(0, step - Math.floor(step/5)) adjusted below.
+═══════════════════════════════════════════════════════════ */
+
+// Convert step to {trickIdx, cardsInTrick, trickCleared}
+// Each trick occupies steps [t*5+1 .. t*5+4] = show cards, t*5+5 = just about to clear
+// Actually: steps 0-4 = trick 1 (0=empty,1=1card,2=2cards,3=3cards,4=4cards all showing)
+//           step 5 = trick 2 starts (trick 1 cards gone)
+// So: trickIdx = floor(step/5), cardsInTrick = step%5
+// cardsInTrick=0 means trick just cleared (new trick, 0 cards shown yet)
+// cardsInTrick 1-4 means that many cards showing on felt
+
+function stepInfo(step){
+  const trickIdx=Math.floor(step/5);  // which trick (0-based)
+  const inTrick=step%5;               // 0=cleared/starting, 1-4=cards on felt
+  // Total cards dealt so far into the play array
+  const cardsDealt=trickIdx*4+Math.min(inTrick,4);
+  return{trickIdx,inTrick,cardsDealt};
+}
+
+function maxStep(play){
+  // 13 complete tricks = step 65 (after last trick shown: step 64 = 4th card of trick 13)
+  // We stop at step where all cards have been shown (don't need the final "clear")
+  const numTricks=Math.floor((play||[]).length/4);
+  // Last meaningful step: all cards of last trick visible = numTricks*5 - 1
+  return numTricks>0 ? numTricks*5-1 : 0;
+}
+
+// Build a lookup: "SuitRank" -> owner position, from all four hands
+function buildCardOwnerMap(hands){
+  const map={};
+  for(const pos of ALL_POS){
+    const h=hands[pos];
+    if(!h)continue;
+    for(const suit of['S','H','D','C']){
+      for(const rank of(h[suit]||[])){
+        map[suit+rank]=pos;
+      }
+    }
+  }
+  return map;
+}
+
+// Convert a raw card string (e.g. "SA", "HT", "D9") to "SuitRank" key
+function cardKey(card){
+  if(!card)return'';
+  const s=card[0].toUpperCase();
+  const r=card.slice(1).replace('T','10');
+  return s+r;
+}
+
+// Pre-compute for a segment: for each card index in play[], who owns it
+function buildPlayOwners(seg){
+  const ownerMap=buildCardOwnerMap(seg.hands);
+  return(seg.play||[]).map(card=>ownerMap[cardKey(card)]||null);
+}
+
+function initViewer(seg,key){
+  if(!seg||!seg.play)return;
+  const owners=buildPlayOwners(seg);
+  VS[key]={seg,step:0,owners};
+}
+
+function renderPlayViewer(key){
+  const vs=VS[key];
+  if(!vs||!vs.seg)return`<span class="nodata">No play data</span>`;
+  const {seg,step,owners}=vs;
+  if(!seg.play||seg.play.length===0)return`<span class="nodata">No play recorded</span>`;
+
+  const {trickIdx,inTrick,cardsDealt}=stepInfo(step);
+  const totalPlay=seg.play.length;
+  const numTricks=Math.floor(totalPlay/4);
+  const mxStep=maxStep(seg.play);
+  const atEnd=step>=mxStep;
+  const atStart=step===0;
+
+  // Which cards has each player played so far (up to cardsDealt)
+  const playedSet={};
+  for(const p of ALL_POS)playedSet[p]=new Set();
+  for(let i=0;i<cardsDealt&&i<totalPlay;i++){
+    const pos=owners[i];
+    if(pos)playedSet[pos].add(cardKey(seg.play[i]));
+  }
+
+  // Cards on the current felt: cards from trickIdx*4 up to inTrick played this trick
+  // Each card goes to the position of its owner
+  const feltCards={};
+  for(const p of ALL_POS)feltCards[p]=null;
+  // Lead = owner of the first card of this trick
+  let trickLead=null;
+  if(inTrick>0){
+    const trickStart=trickIdx*4;
+    for(let i=0;i<inTrick;i++){
+      const cardIdx=trickStart+i;
+      if(cardIdx<totalPlay){
+        const pos=owners[cardIdx];
+        if(pos){
+          feltCards[pos]=seg.play[cardIdx];
+          if(i===0)trickLead=pos;
+        }
+      }
+    }
+  }
+
+  // Render a player's hand as suit rows with played cards struck
+  function handBlock(pos){
+    const h=seg.hands[pos];
+    if(!h||isHandEmpty(h))return`<div style="font-size:11px;color:rgba(255,255,255,.3);font-style:italic">—</div>`;
+    const played=playedSet[pos];
+    const rows=['S','H','D','C'].map(suit=>{
+      const cards=h[suit]||[];
+      if(!cards.length)return`<div class="pv-suit-row"><span class="suit-lbl ${SC[suit]}">${SYM[suit]}</span><span style="color:rgba(255,255,255,.25)">—</span></div>`;
+      const cardSpans=cards.map(r=>{
+        const gone=played.has(suit+r);
+        const isCurrent=feltCards[pos]&&feltCards[pos][0].toUpperCase()===suit&&feltCards[pos].slice(1).replace('T','10')===r;
+        const cls=isCurrent?'pv-hc current-h':gone?'pv-hc played':'pv-hc';
+        return`<span class="${cls}" style="${gone?'opacity:.2;text-decoration:line-through':''}${isCurrent?';color:#ffd700;font-weight:700':''}">${r}</span>`;
+      }).join(' ');
+      return`<div class="pv-suit-row"><span class="suit-lbl ${SC[suit]}">${SYM[suit]}</span>${cardSpans}</div>`;
+    }).join('');
+    return rows;
+  }
+
+  // Render a card on the felt
+  function feltCardHtml(pos){
+    const card=feltCards[pos];
+    const isLead=pos===trickLead&&card!==null;
+    if(!card)return`<div class="felt-card empty"></div>`;
+    return`<div class="felt-card${isLead?' lead':''}">${ch(card)}</div>`;
+  }
+
+  // Trick progress dots
+  const trickDots=Array.from({length:numTricks},(_,i)=>{
+    const cls=i<trickIdx?'tl-trick done':i===trickIdx?'tl-trick cur':'tl-trick';
+    return`<div class="${cls}">${i+1}</div>`;
+  }).join('');
+
+  // Count tricks won so far by NS and EW
+  // For each completed trick, determine winner by: highest card in led suit (or trump)
+  const trumpSuit=seg.contract&&seg.contract!=='Passed'?
+    (seg.contract.match(/\d([SHDC])/i)?.[1]?.toUpperCase()||null):null;
+  let nsTricks=0,ewTricks=0;
+  for(let t=0;t<trickIdx;t++){
+    const base=t*4;
+    if(base+3>=totalPlay)break;
+    const ledCard=seg.play[base];
+    const ledSuit=ledCard?ledCard[0].toUpperCase():null;
+    let winnerPos=owners[base];
+    let winnerCard=ledCard;
+    for(let i=1;i<4;i++){
+      const card=seg.play[base+i];
+      if(!card)continue;
+      const cardSuit=card[0].toUpperCase();
+      const cardOwner=owners[base+i];
+      // Current winner suit
+      const winnerSuit=winnerCard?winnerCard[0].toUpperCase():null;
+      const winsWithTrump=trumpSuit&&cardSuit===trumpSuit&&winnerSuit!==trumpSuit;
+      const winsOnSuit=cardSuit===winnerSuit&&rankVal(card.slice(1).replace('T','10'))<rankVal(winnerCard.slice(1).replace('T','10'));
+      if(winsWithTrump||winsOnSuit){winnerPos=cardOwner;winnerCard=card;}
+    }
+    if(winnerPos==='N'||winnerPos==='S')nsTricks++;
+    else if(winnerPos==='E'||winnerPos==='W')ewTricks++;
+  }
+
+  // Status line
+  const trickCountStr=trickIdx>0?` · NS:${nsTricks} EW:${ewTricks}`:'';
+  const statusLine=atEnd
+    ?`All ${numTricks} tricks · NS:${nsTricks} EW:${ewTricks}${seg.tricks!==null?` · made ${seg.tricks}`:''}`
+    :`Trick ${trickIdx+1}/${numTricks} · card ${inTrick}/4${trickCountStr}`;
+
+  return`<div class="pv-root">
+    <div class="pv-controls">
+      <button class="pv-btn" onclick="pvTrick('${key}',-1)" ${atStart?'disabled':''}>⏮ Trick</button>
+      <button class="pv-btn" onclick="pvStep('${key}',-1)" ${atStart?'disabled':''}>◀</button>
+      <button class="pv-btn" onclick="pvStep('${key}',1)" ${atEnd?'disabled':''}>▶</button>
+      <button class="pv-btn" onclick="pvTrick('${key}',1)" ${atEnd?'disabled':''}>Trick ⏭</button>
+      <button class="pv-btn" onclick="pvGo('${key}',0)">⏪</button>
+      <button class="pv-btn" onclick="pvGo('${key}',${mxStep})">⏩</button>
+      <button class="pv-btn" onclick="pvAuto('${key}')">${autoTimers[key]?'⏸ Stop':'▶▶ Auto'}</button>
+      <div class="pv-status">${statusLine}</div>
+    </div>
+
+    <div class="pv-table">
+      <!-- North -->
+      <div class="pv-hand-N">
+        <div class="pv-seat-lbl">N · ${esc(seg.players.N||'')}</div>
+        <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:500;color:#fff;line-height:1.7">${handBlock('N')}</div>
+      </div>
+
+      <!-- West -->
+      <div class="pv-hand-W">
+        <div class="pv-seat-lbl" style="text-align:right">W · ${esc(seg.players.W||'')}</div>
+        <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:500;color:#fff;line-height:1.7;text-align:right">${handBlock('W')}</div>
+      </div>
+
+      <!-- Center felt with played cards -->
+      <div class="pv-felt">
+        <div class="felt-N">${feltCardHtml('N')}</div>
+        <div class="felt-W">${feltCardHtml('W')}</div>
+        <div class="felt-ctr">
+          <div style="text-align:center;font-family:sans-serif;font-size:10px;color:rgba(255,255,255,.4);line-height:1.6">
+            ${seg.declarer?`<div style="color:rgba(255,255,255,.55)">${seg.contract||''}</div><div>${seg.declarer}</div>`:''}
+          </div>
+        </div>
+        <div class="felt-E">${feltCardHtml('E')}</div>
+        <div class="felt-S">${feltCardHtml('S')}</div>
+      </div>
+
+      <!-- East -->
+      <div class="pv-hand-E">
+        <div class="pv-seat-lbl">E · ${esc(seg.players.E||'')}</div>
+        <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:500;color:#fff;line-height:1.7">${handBlock('E')}</div>
+      </div>
+
+      <!-- South -->
+      <div class="pv-hand-S">
+        <div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:500;color:#fff;line-height:1.7">${handBlock('S')}</div>
+        <div class="pv-seat-lbl" style="margin-top:4px">S · ${esc(seg.players.S||'')}</div>
+      </div>
+    </div>
+
+    <div class="pv-tricklog">${trickDots}</div>
+  </div>`;
+}
+
+function pvRefresh(key){document.getElementById('pv-'+key).innerHTML=renderPlayViewer(key);}
+function pvStopAuto(key){if(autoTimers[key]){clearInterval(autoTimers[key]);delete autoTimers[key];}}
+function pvStep(key,delta){
+  const vs=VS[key];if(!vs)return;
+  pvStopAuto(key);
+  const mx=maxStep(vs.seg.play);
+  vs.step=Math.max(0,Math.min(mx,vs.step+delta));
+  pvRefresh(key);
+}
+function pvGo(key,pos){
+  const vs=VS[key];if(!vs)return;
+  pvStopAuto(key);
+  vs.step=Math.max(0,Math.min(maxStep(vs.seg.play),pos));
+  pvRefresh(key);
+}
+// Jump to end of next/prev trick (lands on cardsInTrick=4, trick fully visible)
+function pvTrick(key,dir){
+  pvStopAuto(key);
+  const vs=VS[key];if(!vs)return;
+  const mx=maxStep(vs.seg.play);
+  const numTricks=Math.floor(vs.seg.play.length/4);
+  const {trickIdx,inTrick}=stepInfo(vs.step);
+  let newStep;
+  if(dir>0){
+    // Show all 4 cards of current trick; if already fully shown, move to end of next trick
+    const endOfCurrent=trickIdx*5+4;
+    if(vs.step<endOfCurrent){
+      newStep=endOfCurrent;
+    } else {
+      const nextTrick=Math.min(numTricks-1,trickIdx+1);
+      newStep=nextTrick*5+4;
+    }
+  } else {
+    // Always go to end of the previous trick (all 4 cards shown)
+    // If we're at trick 0 at any point, go to step 0
+    const prevTrick=trickIdx-1;
+    if(prevTrick<0){
+      newStep=0;
+    } else {
+      newStep=prevTrick*5+4;
+    }
+  }
+  vs.step=Math.max(0,Math.min(mx,newStep));
+  pvRefresh(key);
+}
+// Auto-play: advance one card every 800ms
+const autoTimers={};
+function pvAuto(key){
+  if(autoTimers[key]){
+    clearInterval(autoTimers[key]);
+    delete autoTimers[key];
+    return;
+  }
+  autoTimers[key]=setInterval(()=>{
+    const vs=VS[key];if(!vs){clearInterval(autoTimers[key]);delete autoTimers[key];return;}
+    const mx=maxStep(vs.seg.play);
+    if(vs.step>=mx){
+      clearInterval(autoTimers[key]);delete autoTimers[key];
+
+      return;
+    }
+    vs.step=Math.min(mx,vs.step+1);
+    pvRefresh(key);
+  },800);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RENDER TABLE CARD & BOARD
+═══════════════════════════════════════════════════════════ */
+function switchTab(key,tab){
+  ['bid','play','raw'].forEach(t=>{
+    document.getElementById(`tab-${t}-${key}`)?.classList.toggle('on',t===tab);
+    document.getElementById(`panel-${t}-${key}`)?.classList.toggle('on',t===tab);
+  });
+}
+
+function renderTableCard(seg,label,key){
+  if(!seg)return`<div class="tcard"><div class="tchd"><span class="tclbl">${label}</span><span class="nodata" style="font-size:12px;margin-left:auto">No data</span></div><div style="padding:12px 14px"><p class="nodata">Not played at this table.</p></div></div>`;
+  const sc=seg.tricks!==null?calcScore(seg.contract,seg.declarer,seg.tricks,seg.vul):null;
+  const scStr=sc!==null?(sc>0?`+${sc}`:String(sc)):'';
+  const trStr=seg.tricks!==null?`${seg.tricks} tricks`:'';
+  initViewer(seg,key);
+  return`<div class="tcard">
+    <div class="tchd">
+      <span class="tclbl">${label}</span>
+      <span class="tcctr">${renderContract(seg.contract,seg.declarer)}</span>
+      <span class="tcsco">${[scStr,trStr].filter(Boolean).join(' · ')}</span>
+    </div>
+    <div class="tcbd">
+      <div class="pgrid">
+        <div><span class="pp">N </span><span class="pn">${esc(seg.players.N||'—')}</span></div>
+        <div><span class="pp">S </span><span class="pn">${esc(seg.players.S||'—')}</span></div>
+        <div><span class="pp">E </span><span class="pn">${esc(seg.players.E||'—')}</span></div>
+        <div><span class="pp">W </span><span class="pn">${esc(seg.players.W||'—')}</span></div>
+      </div>
+    </div>
+    <div class="viewer-wrap">
+      <div class="viewer-tabs">
+        <button id="tab-bid-${key}" class="vtab on" onclick="switchTab('${key}','bid')">Bidding</button>
+        <button id="tab-play-${key}" class="vtab" onclick="switchTab('${key}','play')">▶ Play</button>
+        <button id="tab-raw-${key}" class="vtab" onclick="switchTab('${key}','raw')">All tricks</button>
+      </div>
+      <div id="panel-bid-${key}" class="viewer-panel on">${renderBidding(seg.bidding,seg.dealer)}</div>
+      <div id="panel-play-${key}" class="viewer-panel"><div id="pv-${key}">${renderPlayViewer(key)}</div></div>
+      <div id="panel-raw-${key}" class="viewer-panel">${renderRawPlay(seg)}</div>
+    </div>
+  </div>`;
+}
+
+function renderBoard(num){
+  const b=boards[num];
+  const vul=((b.open&&b.open.vul)||(b.closed&&b.closed.vul)||'0');
+  const vulLbl=VUL_LABEL[vul]||'None';
+  const dealerVal=(b.open&&b.open.dealer)||(b.closed&&b.closed.dealer)||'?';
+
+  // Determine which segment has Team A (the canonical NS pair from board 1)
+  // Team A always goes on the LEFT card
+  let leftSeg=b.open, rightSeg=b.closed;
+  let leftRoom='Open', rightRoom='Closed';
+  if(boards._teamA&&b.open&&b.closed){
+    const teamA=boards._teamA;
+    // Check if open room NS matches team A
+    const openNS=new Set([b.open.players.N,b.open.players.S].filter(Boolean));
+    const openOverlap=[...openNS].filter(p=>teamA.has(p)).length;
+    const closedNS=new Set([b.closed.players.N,b.closed.players.S].filter(Boolean));
+    const closedOverlap=[...closedNS].filter(p=>teamA.has(p)).length;
+    if(closedOverlap>openOverlap){
+      // Team A is NS in closed room — swap so they're always on left
+      leftSeg=b.closed; rightSeg=b.open;
+      leftRoom='Closed'; rightRoom='Open';
+    }
+  }
+
+  // Label shows room name and which side Team A is playing
+  function sideLabel(seg,room){
+    if(!seg)return room+' room';
+    const ns=new Set([seg.players.N,seg.players.S].filter(Boolean));
+    const teamA=boards._teamA||new Set();
+    const aIsNS=[...ns].some(p=>teamA.has(p));
+    const side=aIsNS?'NS':'EW';
+    return`${room} room <span style="font-size:10px;color:var(--text3)">(Team A ${side})</span>`;
+  }
+
+  const sc1=leftSeg&&leftSeg.tricks!==null?calcScore(leftSeg.contract,leftSeg.declarer,leftSeg.tricks,vul):null;
+  const sc2=rightSeg&&rightSeg.tricks!==null?calcScore(rightSeg.contract,rightSeg.declarer,rightSeg.tricks,vul):null;
+  let impHtml='';
+  if(sc1!==null&&sc2!==null){
+    // NS score from left table + EW score from right table
+    // calcScore returns NS perspective, so EW score from right = -sc2
+    const imp=toImp(sc1+(-sc2));
+    impHtml=`<span class="itag ${imp>0?'ipos':imp<0?'ineg':'izero'}">${imp>0?'+':''}${imp} IMP</span>`;
+  }
+
+  const hands=(leftSeg&&Object.keys(leftSeg.hands||{}).length)?leftSeg.hands
+             :(rightSeg&&Object.keys(rightSeg.hands||{}).length)?rightSeg.hands:null;
+  const ck=(t,p)=>`b${num}_t${t}_${p}`;
+  const lkey=`${num}-l`, rkey=`${num}-r`;
+  return`<div class="bsec" id="board-${num}">
+    <div class="bhd">
+      <span class="bnum">Board ${num}</span>
+      <span class="tag ${vulLbl!=='None'?'tvul':'tnone'}">${vulLbl} vul</span>
+      <span class="tag tnone">Dealer ${dealerVal}</span>
+      ${impHtml}
+    </div>
+    ${hands?renderDiagram(hands):''}
+    <div class="tgrid">
+      ${renderTableCard(leftSeg,sideLabel(leftSeg,leftRoom),lkey)}
+      ${renderTableCard(rightSeg,sideLabel(rightSeg,rightRoom),rkey)}
+    </div>
+    <div class="ccard">
+      <div class="cchd">Commentary</div>
+      <div class="ccbd">
+        <div class="ccgrid">
+          <div>
+            <div class="clbl" style="margin-bottom:6px;font-size:11px;color:var(--text2)">Left table</div>
+            <div class="clbl">N/S</div><textarea id="${ck('l','ns')}" oninput="saveCmt('${ck('l','ns')}',this.value)" placeholder="Notes for N/S (left table)…">${esc(comments[ck('l','ns')]||'')}</textarea>
+            <div class="clbl" style="margin-top:8px">E/W</div><textarea id="${ck('l','ew')}" oninput="saveCmt('${ck('l','ew')}',this.value)" placeholder="Notes for E/W (left table)…">${esc(comments[ck('l','ew')]||'')}</textarea>
+          </div>
+          <div>
+            <div class="clbl" style="margin-bottom:6px;font-size:11px;color:var(--text2)">Right table</div>
+            <div class="clbl">N/S</div><textarea id="${ck('r','ns')}" oninput="saveCmt('${ck('r','ns')}',this.value)" placeholder="Notes for N/S (right table)…">${esc(comments[ck('r','ns')]||'')}</textarea>
+            <div class="clbl" style="margin-top:8px">E/W</div><textarea id="${ck('r','ew')}" oninput="saveCmt('${ck('r','ew')}',this.value)" placeholder="Notes for E/W (right table)…">${esc(comments[ck('r','ew')]||'')}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PBN PARSER
+═══════════════════════════════════════════════════════════ */
+function parsePbn(pbnText){
+  const result={};
+  // Split on lines that start a new segment (Event or Board tag at line start)
+  // Each board appears twice: once for Open, once for Closed
+  const segs=pbnText.split(/\n(?=\[(?:Event|Board)\s)/i).filter(s=>s.trim());
+
+  for(const seg of segs){
+    const get=tag=>{
+      const m=seg.match(new RegExp('\\['+tag+'\\s+"([^"]*)"\\]','i'));
+      return m?m[1].trim():'';
+    };
+    const boardNum=parseInt(get('Board'));
+    if(isNaN(boardNum)||boardNum<1)continue;
+
+    // Room detection using [Room] tag
+    const roomStr=get('Room').toLowerCase();
+    const room=roomStr==='closed'?'c':'o';
+
+    const dealer=get('Dealer').toUpperCase()||'N';
+    const vul=pbnVul(get('Vulnerable'));
+    const declarer=get('Declarer').toUpperCase();
+    const contractRaw=get('Contract');
+    const resultStr=get('Result');
+    const tricks=resultStr!==''&&resultStr!=='-'?parseInt(resultStr):null;
+
+    const players={N:get('North'),S:get('South'),E:get('East'),W:get('West')};
+
+    // Deal
+    const hands={};
+    const dealStr=get('Deal');
+    if(dealStr){
+      const m=dealStr.match(/^([NESW]):([\S]+)\s+([\S]+)\s+([\S]+)\s+([\S]+)/i);
+      if(m){
+        const order=['N','E','S','W'];
+        const si=order.indexOf(m[1].toUpperCase());
+        for(let i=0;i<4;i++)hands[order[(si+i)%4]]=parsePbnHand(m[i+2]);
+      }
+    }
+
+    // Auction — lines after [Auction "X"] until next [ line
+    const bidding=[];
+    const auctionM=seg.match(/\[Auction\s+"[^"]*"\]\n((?:[^\[].*\n?)*)/i);
+    if(auctionM){
+      for(const line of auctionM[1].split('\n')){
+        if(line.startsWith('['))break;
+        for(let tok of line.trim().split(/\s+/)){
+          if(!tok)continue;
+          tok=tok.replace(/=[^=]+=$/,'').trim(); // strip =1= annotations
+          if(!tok)continue;
+          const u=tok.toUpperCase();
+          if(u==='PASS'||u==='P')bidding.push('p');
+          else if(u==='X'||u==='DBL')bidding.push('X');
+          else if(u==='XX'||u==='RDBL')bidding.push('XX');
+          else if(u==='AP'){bidding.push('p');bidding.push('p');bidding.push('p');}
+          else if(/^\d[NSHDC]/i.test(u))bidding.push(u);
+        }
+      }
+    }
+
+    // Play — PBN gives one row per trick, in play order starting from leader
+    // [Play "E"] means E leads trick 1; each row has 4 cards in seat order from leader
+    // We need to track who wins each trick to determine next leader
+    const play=[];
+    const playTagM=seg.match(/\[Play\s+"([^"]*)"\]/i);
+    const playM=seg.match(/\[Play\s+"[^"]*"\]\n((?:[^\[].*\n?)*)/i);
+    if(playM&&playTagM){
+      const ALL_POS=['N','E','S','W'];
+      const contractForPlay=contractRaw.toUpperCase();
+      const trumpM=contractForPlay.match(/^\d([NSHDC])/i);
+      const trump=trumpM&&trumpM[1].toUpperCase()!=='N'?trumpM[1].toUpperCase():null;
+
+      let leader=playTagM[1].toUpperCase(); // who leads trick 1
+
+      for(const line of playM[1].split('\n')){
+        if(line.trim()==='*'||line.startsWith('['))break;
+        const toks=line.trim().split(/\s+/).filter(t=>t&&t!=='-'&&t!=='*');
+        if(!toks.length)continue;
+
+        // Parse cards for this trick
+        const trickCards=[];
+        for(const tok of toks){
+          const cm=tok.match(/^([SHDC])([AKQJT98765432])/i);
+          if(cm)trickCards.push(cm[1].toUpperCase()+(cm[2].toUpperCase()==='T'?'10':cm[2].toUpperCase()));
+        }
+        if(!trickCards.length)continue;
+
+        // Assign positions: leader plays first, then NESW order
+        const leaderIdx=ALL_POS.indexOf(leader);
+        const positions=trickCards.map((_,i)=>ALL_POS[(leaderIdx+i)%4]);
+
+        // Add cards to play array in trick order (already correct)
+        for(const card of trickCards)play.push(card);
+
+        // Determine trick winner for next lead
+        // Winner = highest trump if any played, else highest card of led suit
+        const ledSuit=trickCards[0][0];
+        let winnerIdx=0;
+        for(let i=1;i<trickCards.length;i++){
+          const card=trickCards[i];
+          const cardSuit=card[0];
+          const winnerCard=trickCards[winnerIdx];
+          const winnerSuit=winnerCard[0];
+          const winsWithTrump=trump&&cardSuit===trump&&winnerSuit!==trump;
+          const winsOnSuit=cardSuit===winnerSuit&&rankVal(card.slice(1))<rankVal(winnerCard.slice(1));
+          if(winsWithTrump||winsOnSuit)winnerIdx=i;
+        }
+        leader=positions[winnerIdx];
+      }
+    }
+
+    // Normalise contract: 4S, 2DX, 3NTX etc
+    let contractNorm='';
+    const cr=contractRaw.toUpperCase();
+    if(cr==='PASS'||cr==='-')contractNorm='Passed';
+    else if(cr){
+      const cm=cr.match(/^(\d)([NSHDC])(X{0,2}|D{0,2})/);
+      if(cm)contractNorm=cm[1]+cm[2]+(cm[3]||'').replace(/D/g,'X');
+    }
+
+    const seg_parsed={
+      qx:room+boardNum,players,hands,bidding,play,
+      board:String(boardNum),vul,dealer,
+      contract:contractNorm||deriveContract(bidding),
+      declarer:declarer||deriveDeclarer(bidding,dealer),
+      tricks:isNaN(tricks)?null:tricks
+    };
+
+    if(!result[boardNum])result[boardNum]={num:boardNum,open:null,closed:null};
+    if(room==='o')result[boardNum].open=seg_parsed;
+    else result[boardNum].closed=seg_parsed;
+  }
+
+  const nums=Object.keys(result).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  if(!nums.length)return null;
+  const first=result[nums[0]];
+  const ref=first.open||first.closed;
+  if(ref){
+    result._teamA=new Set([ref.players.N,ref.players.S].filter(Boolean));
+    result._teamB=new Set([ref.players.E,ref.players.W].filter(Boolean));
+  }
+  return result;
+}
+
+function parsePbnHand(str){
+  const h={S:[],H:[],D:[],C:[]};
+  const suits=['S','H','D','C'];
+  str.split('.').forEach((p,i)=>{
+    const suit=suits[i];
+    if(!suit)return;
+    for(const c of p){h[suit].push(c==='T'?'10':c.toUpperCase());}
+    h[suit].sort((a,b)=>rankVal(a)-rankVal(b));
+  });
+  return h;
+}
+
+function pbnVul(v){
+  if(!v)return'0';
+  const vl=v.toLowerCase();
+  if(vl==='none'||vl==='-')return'0';
+  if(vl==='ns'||vl==='n')return'n';
+  if(vl==='ew'||vl==='e')return'e';
+  if(vl==='both'||vl==='all'||vl==='b')return'b';
+  return'0';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESULTS SUMMARY TABLE
+═══════════════════════════════════════════════════════════ */
+function renderSummary(nums){
+  const sw=document.getElementById('summaryWrap');
+  if(!nums.length){sw.style.display='none';return;}
+
+  let totalWe=0,totalThey=0;
+  let rows='';
+  for(const num of nums){
+    const b=boards[num];
+    if(!b)continue;
+    const vul=(b.open&&b.open.vul)||(b.closed&&b.closed.vul)||'0';
+
+    let leftSeg=b.open,rightSeg=b.closed;
+    if(boards._teamA&&b.open&&b.closed){
+      const openNS=new Set([b.open.players.N,b.open.players.S].filter(Boolean));
+      if([...(boards._teamA)].every(p=>![...openNS].includes(p))){{leftSeg=b.closed;rightSeg=b.open;}}
+    }
+
+    const sc1=leftSeg&&leftSeg.tricks!==null?calcScore(leftSeg.contract,leftSeg.declarer,leftSeg.tricks,vul):null;
+    const sc2=rightSeg&&rightSeg.tricks!==null?calcScore(rightSeg.contract,rightSeg.declarer,rightSeg.tricks,vul):null;
+
+    let impWe='',impThey='',impClass='sum-dash';
+    if(sc1!==null&&sc2!==null){
+      const imp=toImp(sc1+(-sc2));
+      if(imp>0){impWe='+'+imp;totalWe+=imp;impClass='sum-pos';}
+      else if(imp<0){impThey=String(Math.abs(imp));totalThey+=Math.abs(imp);impClass='sum-neg';}
+      else{impWe='=';impThey='';impClass='sum-dash';}
+    } else {impWe='—';impThey='—';}
+
+    const ck=(t,p)=>`b${num}_t${t}_${p}`;
+    const hasComment=['l','r'].some(t=>['ns','ew'].some(p=>comments[ck(t,p)]&&comments[ck(t,p)].trim()));
+    const boardLabel=hasComment?`<b>B${num}*</b>`:`B${num}`;
+    const boardCell=`<td class="${hasComment?'sum-commented':''}"><a href="#board-${num}">${boardLabel}</a></td>`;
+
+    function ctrCell(seg){
+      if(!seg)return'<td class="sum-dash" style="color:var(--text3)">—</td>';
+      const c=seg.contract;
+      if(!c||c==='Passed')return'<td style="color:var(--text3)">Pass</td>';
+      const sc=seg.tricks!==null?calcScore(c,seg.declarer,seg.tricks,vul):null;
+      const scStr=sc!==null?(sc>0?'+'+sc:String(sc)):'';
+      return`<td>${esc(c)}${seg.declarer?' '+seg.declarer:''} <span style="font-size:11px;color:var(--text2)">${scStr}</span></td>`;
+    }
+
+    rows+=`<tr>
+      ${boardCell}
+      ${ctrCell(leftSeg)}
+      <td class="${impClass}">${impWe}</td>
+      <td class="${impClass}">${impThey}</td>
+      ${ctrCell(rightSeg)}
+    </tr>`;
+  }
+
+  const totalRow=`<tr>
+    <td colspan="2" style="text-align:right">Total</td>
+    <td class="sum-pos">${totalWe}</td>
+    <td class="sum-neg">${totalThey}</td>
+    <td></td>
+  </tr>`;
+
+  sw.innerHTML=`<table class="summary-tbl">
+    <thead><tr>
+      <th style="text-align:left">Bd</th>
+      <th>Open room</th>
+      <th>We</th><th>They</th>
+      <th>Closed room</th>
+    </tr></thead>
+    <tbody>${rows}${totalRow}</tbody>
+  </table>`;
+  sw.style.display='block';
+}
+
+function refreshSummary(){
+  const nums=Object.keys(boards).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  if(nums.length)renderSummary(nums);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MAIN FLOW
+═══════════════════════════════════════════════════════════ */
+function setStatus(msg,err){const el=document.getElementById('status');el.textContent=msg;el.className=err?'err':'';}
+
+function processText(text,title){
+  setStatus('Parsing…');
+  let input=text.trim();
+
+  // Detect PBN vs LIN — PBN starts with % or [Event/[Board tags
+  const isPbn=/^%\s*PBN/i.test(input)||/^\[Board\s/im.test(input.slice(0,500))||/^\[Event\s/im.test(input.slice(0,200));
+  let parsed;
+
+  if(isPbn){
+    parsed=parsePbn(input);
+    if(!parsed||!Object.keys(parsed).filter(k=>!isNaN(Number(k))).length){
+      setStatus('Could not parse PBN file.',true);return;
+    }
+    window._rawLin=''; // no LIN for PBN files
+  } else {
+    let lin=input;
+    if(lin.startsWith('<')||lin.includes('<html')){
+      const jsV=lin.match(/(?:var\s+)?lin\s*=\s*["']([^"']{100,})["']/i);
+      if(jsV)lin=jsV[1].replace(/\\n/g,'\n');
+      else{
+        const urlV=lin.match(/[?&]lin=((?:vg|pn|qx)[^"'&\s<>]{50,})/i);
+        if(urlV){try{lin=decodeURIComponent(urlV[1]);}catch(e){lin=urlV[1];}}
+        else{setStatus('No LIN data found in pasted content.',true);return;}
+      }
+    }
+    parsed=parseLin(lin);
+    window._rawLin=lin;
+  }
+
+  const nums=Object.keys(parsed).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  if(!nums.length){setStatus('Could not parse any boards.',true);return;}
+  boards=parsed;
+  window._matchTitle=title||'BBO Team Match';
+  comments={};
+
+  document.getElementById('mtitle').textContent=window._matchTitle;
+  fbInit(window._matchTitle);
+  if(window._rawLin)fbSaveLin(window._rawLin,window._matchTitle);
+  document.getElementById('mmeta').textContent=`${nums.length} board${nums.length!==1?'s':''} · open & closed room`;
+  document.getElementById('bnav').innerHTML=nums.map((n,i)=>`<button class="nb${i===0?' on':''}" onclick="goBoard(${n},this)">B${n}</button>`).join('');
+  document.getElementById('bctr').innerHTML=nums.map(n=>renderBoard(n)).join('');
+  renderSummary(nums);
+  for(const[k,v]of Object.entries(comments)){const el=document.getElementById(k);if(el&&!el.value)el.value=v;}
+  document.getElementById('results').style.display='block';
+  window.scrollTo({top:document.getElementById('results').offsetTop-20,behavior:'smooth'});
+  setStatus('');
+}
+function renameMatch(){
+  if(!fbDb||!fbMatchKey){alert('No match loaded or Firebase not connected.');return;}
+  const newName=prompt('Rename match to:',window._matchTitle||fbMatchKey);
+  if(!newName||!newName.trim())return;
+  const newKey=newName.trim().replace(/[^a-zA-Z0-9_-]/g,'-').replace(/-+/g,'-').slice(0,60);
+  if(newKey===fbMatchKey){alert('Name is unchanged.');return;}
+  setStatus('Renaming…');
+  fbDb.ref('matches/'+fbMatchKey).once('value',snap=>{
+    const data=snap.val();
+    if(!data){setStatus('No data found.',true);return;}
+    if(data.meta)data.meta.title=newName.trim();
+    fbDb.ref('matches/'+newKey).set(data).then(()=>{
+      return fbDb.ref('matches/'+fbMatchKey).remove();
+    }).then(()=>{
+      window._matchTitle=newName.trim();
+      fbMatchKey=newKey;
+      document.getElementById('mtitle').textContent=window._matchTitle;
+      if(fbUnsubscribe)fbUnsubscribe();
+      fbListen();
+      setStatus('');
+    }).catch(e=>setStatus('Rename failed: '+e.message,true));
+  });
+}
+function goBoard(num,btn){
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('board-'+num)?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function saveCmt(k,v){
+  comments[k]=v;
+  fbSaveCmt(k,v);
+}
+function saveSession(){
+  if(!window._rawLin){alert('No match loaded yet.');return;}
+  // Store LIN + comments as JSON in a <script type="application/json"> tag.
+  // This avoids ALL escaping issues — JSON.stringify handles everything safely.
+  const payload=JSON.stringify({
+    lin:window._rawLin,
+    title:window._matchTitle||'BBO Team Match',
+    cmts:comments
+  });
+  // Read viewer source from the hidden #viewer-src element (injected at page load by Python)
+  const viewerSrcEl=document.getElementById('viewer-src');
+  if(!viewerSrcEl){alert('Viewer source element not found. Please re-download bbo-team-viewer.html.');return;}
+  const base=JSON.parse(viewerSrcEl.textContent);
+  // Build autoload block that reads the payload and fires processText
+  const autoload=[
+    '<scr'+'ipt id="session-autoload">',
+    '(function(){',
+    'var p=JSON.parse(document.getElementById("session-payload").textContent);',
+    'Object.assign(comments,p.cmts);',
+    'window.addEventListener("load",function(){processText(p.lin,p.title);},{once:true});',
+    '})();',
+    '</'+'script>'
+  ].join('\n');
+  const payloadTag='<scr'+'ipt id="session-payload" type="application/json">\n'+payload+'\n</'+'script>';
+  const out=base+'\n'+payloadTag+'\n'+autoload+'\n';
+  const fname=(window._matchTitle||'bbo-match').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-session.html';
+  const a=Object.assign(document.createElement('a'),{
+    href:URL.createObjectURL(new Blob([out],{type:'text/html'})),
+    download:fname
+  });
+  a.click();
+}
+
+function loadFromCloud(){
+  const doLoad=function(){
+    if(!fbDb){
+      try{
+        if(!window.firebase){alert('Firebase not available. Check your internet connection.');return;}
+        if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+        fbDb=firebase.database();
+      }catch(e){alert('Could not connect to Firebase: '+e.message);return;}
+    }
+    fbDb.ref('matches').once('value',snap=>{
+      const data=snap.val()||{};
+      const keys=Object.keys(data).sort((a,b)=>{
+        const ta=data[a]?.meta?.updated||0;
+        const tb=data[b]?.meta?.updated||0;
+        return tb-ta; // newest first
+      });
+      if(!keys.length){alert('No matches saved in the cloud yet.');return;}
+      showCloudPicker(keys,data);
+    });
+  };
+  if(window._firebaseReady){doLoad();}
+  else{window._pendingFbInit=doLoad;}
+}
+
+function showCloudPicker(keys,data){
+  // Remove existing picker if any
+  const existing=document.getElementById('cloud-picker-overlay');
+  if(existing)existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='cloud-picker-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center';
+
+  const box=document.createElement('div');
+  box.style.cssText='background:var(--surface);border-radius:var(--rl);width:min(460px,92vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;border:.5px solid var(--border2)';
+
+  // Header
+  const hd=document.createElement('div');
+  hd.style.cssText='padding:12px 16px;background:var(--surface2);border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0';
+  const closeBtn=document.createElement('button');
+  closeBtn.textContent='✕';
+  closeBtn.style.cssText='background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);line-height:1;padding:0';
+  closeBtn.onclick=()=>overlay.remove();
+  const hdTitle=document.createElement('span');
+  hdTitle.style.cssText='font-size:14px;font-family:sans-serif;color:var(--text)';
+  hdTitle.textContent='Cloud matches';
+  hd.appendChild(hdTitle);
+  hd.appendChild(closeBtn);
+
+  // List
+  const list=document.createElement('div');
+  list.style.cssText='overflow-y:auto;flex:1;padding:8px';
+
+  keys.forEach(key=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);border:.5px solid var(--border);margin-bottom:6px;background:var(--surface)';
+
+    const meta=data[key]?.meta;
+    const updated=meta?.updated?new Date(meta.updated).toLocaleDateString():'';
+    const commentCount=data[key]?.comments?Object.keys(data[key].comments).filter(k=>data[key].comments[k]).length:0;
+
+    const safeKey=esc(key);
+    const metaLine=(updated?'Saved '+updated:'')+(commentCount?' · '+commentCount+' comment'+(commentCount!==1?'s':''):'');
+    row.innerHTML='<div style="flex:1;min-width:0">'
+      +'<div style="font-size:13px;color:var(--text);font-family:sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+safeKey+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);font-family:sans-serif">'+metaLine+'</div>'
+      +'</div>'
+      +'<button onclick="cloudLoad(this.dataset.k)" data-k="'+safeKey+'" style="padding:5px 12px;font-size:12px;font-family:sans-serif;background:var(--accent);color:#fff;border:none;border-radius:var(--r);cursor:pointer;flex-shrink:0">Load</button>'
+      +' <button onclick="cloudDelete(this.dataset.k)" data-k="'+safeKey+'" style="padding:5px 10px;font-size:12px;font-family:sans-serif;background:transparent;color:var(--red);border:.5px solid var(--red);border-radius:var(--r);cursor:pointer;flex-shrink:0">Delete</button>';
+
+    list.appendChild(row);
+  });
+
+  box.appendChild(hd);
+  box.appendChild(list);
+  overlay.appendChild(box);
+  // Close on backdrop click
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+  document.body.appendChild(overlay);
+}
+
+function cloudLoad(key){
+  document.getElementById('cloud-picker-overlay')?.remove();
+  fbDb.ref('matches/'+key).once('value',snap=>{
+    const m=snap.val()||{};
+    if(m.meta&&m.meta.lin){
+      if(m.comments)Object.assign(comments,m.comments);
+      processText(m.meta.lin,m.meta.title||key);
+    } else {
+      alert('No LIN data found for this match.');
+    }
+  });
+}
+
+function cloudDelete(key){
+  if(!confirm('Delete "'+key+'" from the cloud? This cannot be undone.'))return;
+  fbDb.ref('matches/'+key).remove().then(()=>{
+    // Refresh the picker
+    fbDb.ref('matches').once('value',snap=>{
+      const data=snap.val()||{};
+      const keys=Object.keys(data).sort();
+      const overlay=document.getElementById('cloud-picker-overlay');
+      if(overlay)overlay.remove();
+      if(keys.length)showCloudPicker(keys,data);
+      else alert('No matches left in cloud.');
+    });
+  }).catch(e=>alert('Delete failed: '+e.message));
+}
+function exportCmts(){
+  const nums=Object.keys(boards).map(Number).sort((a,b)=>a-b);
+  let out=`BBO Team Match Commentary\n${'='.repeat(36)}\n\n`;let any=false;
+  for(const n of nums){
+    const keys=[`b${n}_t1_ns`,`b${n}_t1_ew`,`b${n}_t2_ns`,`b${n}_t2_ew`];
+    const lbls=['Table 1 N/S','Table 1 E/W','Table 2 N/S','Table 2 E/W'];
+    if(keys.some(k=>comments[k]?.trim())){
+      out+=`Board ${n}\n${'-'.repeat(20)}\n`;
+      keys.forEach((k,i)=>{if(comments[k]?.trim())out+=`${lbls[i]}: ${comments[k].trim()}\n`;});
+      out+='\n';any=true;
+    }
+  }
+  if(!any)out+='(no comments yet)\n';
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([out],{type:'text/plain'})),download:'bbo-match-commentary.txt'});
+  a.click();
+}
+</script>
+
+<script id="viewer-src" type="application/json">
+"<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>BBO Team Match Viewer</title>\n<style>\n:root{\n  --bg:#f7f6f2;--surface:#fff;--surface2:#f0efe9;--border:#e2e1d9;--border2:#c9c8bf;\n  --text:#1a1917;--text2:#5c5b56;--text3:#928f86;\n  --accent:#1a5fa0;--accent2:#e6f0fa;\n  --green:#2d6b0e;--green-bg:#eaf3de;\n  --red:#a02020;--red-bg:#faeded;\n  --r:7px;--rl:11px;\n}\n@media(prefers-color-scheme:dark){:root{\n  --bg:#1c1b18;--surface:#252420;--surface2:#2d2c28;--border:#3c3b36;--border2:#4e4d47;\n  --text:#eeede6;--text2:#a5a49c;--text3:#6c6b64;--accent:#7fb4e8;--accent2:#0a2840;\n  --green:#8dc44f;--green-bg:#162f04;--red:#e88080;--red-bg:#3a1010;\n}}\n*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}\nbody{font-family:'Aptos','Aptos Display',Calibri,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6}\n#app{max-width:1160px;margin:0 auto;padding:28px 18px 60px}\nh1{font-size:21px;font-weight:400;letter-spacing:-.2px;margin-bottom:5px}\n.sub{color:var(--text3);font-size:13px;font-style:italic;margin-bottom:32px}\n#dropzone{border:1.5px dashed var(--border2);border-radius:var(--rl);padding:40px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:16px;position:relative}\n#dropzone:hover,#dropzone.over{border-color:var(--accent);background:var(--accent2)}\n#dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}\n.dz-icon{font-size:32px;margin-bottom:10px}\n.dz-main{font-size:15px;color:var(--text2);margin-bottom:4px}.dz-main b{color:var(--accent)}\n.dz-sub{font-size:12px;color:var(--text3)}\n.or-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}\n.or-row hr{flex:1;border:none;border-top:.5px solid var(--border)}\n.or-row span{font-size:12px;color:var(--text3);white-space:nowrap}\n.paste-area{width:100%;min-height:68px;padding:9px 12px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--surface2);color:var(--text);font-family:monospace;font-size:12px;resize:vertical;outline:none}\n.paste-area:focus{border-color:var(--accent);background:var(--surface)}\n.btn{padding:9px 22px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;cursor:pointer;font-family:inherit;font-style:italic;white-space:nowrap;margin-top:8px}\n.btn:hover{opacity:.87}\n.ghost{padding:5px 12px;background:transparent;color:var(--accent);border:.5px solid var(--border2);border-radius:var(--r);font-size:12px;cursor:pointer;font-family:inherit}\n.ghost:hover{background:var(--surface2)}\n.hint{font-size:12px;color:var(--text3);margin-top:10px}\n#status{min-height:22px;margin:14px 0;font-size:13px;color:var(--text2)}\n.err{color:var(--red)!important}\n#results{display:none}\n.mtitle{font-size:18px;font-weight:400;margin-bottom:3px}\n.mmeta{font-size:12px;color:var(--text3);margin-bottom:22px}\n.reload-btn{font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;text-decoration:underline;text-underline-offset:2px}\n.bnav{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:22px;padding-bottom:18px;border-bottom:.5px solid var(--border)}\n.nb{padding:4px 10px;font-size:12px;font-family:inherit;border:.5px solid var(--border);border-radius:var(--r);background:var(--surface);color:var(--text2);cursor:pointer}\n.nb:hover{border-color:var(--accent);color:var(--accent)}\n.nb.on{background:var(--accent);color:#fff;border-color:var(--accent)}\n.bsec{margin-bottom:52px;scroll-margin-top:16px}\n.bhd{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:9px;border-bottom:.5px solid var(--border);flex-wrap:wrap}\n.bnum{font-size:16px;font-weight:400}\n.tag{font-size:11px;padding:2px 9px;border-radius:4px}\n.tnone{background:var(--surface2);color:var(--text3)}\n.tvul{background:var(--red-bg);color:var(--red)}\n.itag{margin-left:auto;font-size:12px;padding:2px 10px;border-radius:4px}\n.ipos{background:var(--green-bg);color:var(--green)}\n.ineg{background:var(--red-bg);color:var(--red)}\n.izero{background:var(--surface2);color:var(--text3)}\n/* hand diagram (static overview) */\n.hdiag{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto auto auto;gap:4px 10px;margin:0 auto 16px;font-family:Verdana,Geneva,sans-serif;font-size:13px;font-weight:500;width:fit-content;max-width:420px;background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);padding:12px 16px}\n.hn{grid-column:2;grid-row:1;text-align:center}\n.hw{grid-column:1;grid-row:2}\n.hctr{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center}\n.he{grid-column:3;grid-row:2;text-align:right}\n.hsd{grid-column:2;grid-row:3;text-align:center}\n.hpos{font-size:10px;font-family:sans-serif;color:var(--text3);letter-spacing:.4px;text-transform:uppercase;margin-bottom:2px}\n.hsuit{font-size:13px;font-weight:500;line-height:1.6;display:flex;gap:4px}.hsuit-s{display:inline-block;width:14px;flex-shrink:0}\n.cmp{width:36px;height:36px;border:.5px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--text3);font-family:sans-serif;line-height:1.4;text-align:center}\n.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}\n@media(max-width:720px){.tgrid{grid-template-columns:1fr}}\n.tcard{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);overflow:hidden}\n.tchd{padding:9px 14px;background:var(--surface2);border-bottom:.5px solid var(--border);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}\n.tclbl{font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);font-family:sans-serif;flex-shrink:0}\n.tcctr{font-size:14px}\n.tcsco{font-size:12px;color:var(--text2);margin-left:auto}\n.tcbd{padding:10px 14px 2px}\n.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:12px}\n.pp{color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-family:sans-serif}\n.pn{color:var(--text2);font-style:italic}\n/* viewer tabs */\n.viewer-wrap{border-top:.5px solid var(--border)}\n.viewer-tabs{display:flex;border-bottom:.5px solid var(--border)}\n.vtab{flex:1;padding:7px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-family:sans-serif;color:var(--text3);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent}\n.vtab:hover{color:var(--text2)}\n.vtab.on{color:var(--accent);border-bottom-color:var(--accent)}\n.viewer-panel{display:none;padding:12px 14px}\n.viewer-panel.on{display:block}\n/* bidding */\n.btbl{width:100%;border-collapse:collapse;font-size:13px}\n.btbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);padding:2px 6px 4px;font-weight:400;text-align:center;border-bottom:.5px solid var(--border);font-family:sans-serif}\n.btbl td{padding:2px 6px;text-align:center;min-width:38px}\n.btbl tr:not(:last-child) td{border-bottom:.5px dotted var(--border)}\n/* raw play table */\n.phd{display:grid;grid-template-columns:20px repeat(4,1fr);font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);font-family:sans-serif;margin-bottom:3px;text-align:center}\n.prow{display:grid;grid-template-columns:20px repeat(4,1fr);font-size:12px;text-align:center;padding:1px 0}\n.prow:nth-child(even){background:var(--surface2);border-radius:3px}\n.tn{color:var(--text3);font-size:10px;font-family:sans-serif}\n/* suit colours */\n.sS{color:var(--text)}.sH{color:var(--red)}.sD{color:#cc5500}.sC{color:#007a00}\n/* comments */\n.ccard{background:var(--surface);border:.5px solid var(--border);border-radius:var(--rl);overflow:hidden}\n.cchd{padding:9px 14px;background:var(--surface2);border-bottom:.5px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);font-family:sans-serif}\n.ccbd{padding:12px 14px}\n.ccgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n@media(max-width:680px){.ccgrid{grid-template-columns:1fr}}\n.clbl{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);font-family:sans-serif;margin-bottom:4px}\ntextarea{width:100%;padding:7px 10px;border:.5px solid var(--border);border-radius:var(--r);background:var(--surface2);color:var(--text);font-family:inherit;font-size:13px;resize:vertical;min-height:60px;outline:none}\ntextarea:focus{border-color:var(--accent);background:var(--surface)}\n.tbar{display:flex;justify-content:flex-end;margin-top:18px;gap:8px}\n.nodata{color:var(--text3);font-style:italic;font-size:13px}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   BBO-STYLE PLAY VIEWER\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\n.pv-root{display:flex;flex-direction:column;gap:10px}\n\n/* Controls bar */\n.pv-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0 8px;border-bottom:.5px solid var(--border)}\n.pv-btn{padding:4px 11px;font-size:12px;font-family:sans-serif;background:var(--surface2);color:var(--text2);border:.5px solid var(--border);border-radius:var(--r);cursor:pointer;user-select:none}\n.pv-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}\n.pv-btn:disabled{opacity:.3;cursor:not-allowed}\n.pv-status{margin-left:auto;font-size:11px;color:var(--text3);font-family:sans-serif;text-align:right}\n\n/* Table area: compass layout \u2014 3x3 grid, hands on edges, felt center */\n.pv-table{\n  display:grid;\n  grid-template-columns:1fr 180px 1fr;\n  grid-template-rows:auto auto auto;\n  gap:8px;\n  background:#2a5428;\n  border-radius:12px;\n  padding:12px;\n}\n/* North hand: top-center */\n.pv-hand-N{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:center}\n/* West hand: middle-left */\n.pv-hand-W{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:flex-end;justify-content:center}\n/* Center felt: middle-center */\n.pv-felt{grid-column:2;grid-row:2;position:relative;min-height:130px;display:grid;grid-template-columns:40px 1fr 40px;grid-template-rows:40px 1fr 40px;gap:2px}\n/* East hand: middle-right */\n.pv-hand-E{grid-column:3;grid-row:2;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}\n/* South hand: bottom-center */\n.pv-hand-S{grid-column:2;grid-row:3;display:flex;flex-direction:column;align-items:center}\n\n/* Seat label */\n.pv-seat-lbl{font-size:10px;font-family:sans-serif;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;text-align:center}\n\n/* Hand cards \u2014 horizontal fan */\n.pv-hand-cards{display:flex;flex-wrap:wrap;gap:2px 4px;justify-content:center;max-width:160px}\n.pv-hand-N .pv-hand-cards,.pv-hand-S .pv-hand-cards{justify-content:center}\n.pv-hand-W .pv-hand-cards{justify-content:flex-end}\n.pv-hand-E .pv-hand-cards{justify-content:flex-start}\n\n/* A single card in the hand */\n.pv-hcard{\n  display:inline-flex;align-items:center;\n  background:#fff;border-radius:4px;\n  padding:1px 4px;font-size:12px;font-weight:500;\n  border:1px solid #ddd;line-height:1.4;\n  white-space:nowrap;\n}\n.pv-hcard.played{opacity:.22;text-decoration:line-through;border-color:#ccc}\n.pv-hcard.current{box-shadow:0 0 0 2px #ffd700;border-color:#ffd700;transform:translateY(-3px)}\n\n/* Suit rows within hands (like BBO \u2014 one row per suit) */\n.pv-suit-row{display:flex;align-items:center;gap:3px;font-size:13px;font-weight:500;line-height:1.6;white-space:nowrap}\n.pv-suit-row .suit-lbl{font-size:13px;width:14px;flex-shrink:0}\n.pv-hc{font-family:Verdana,Geneva,sans-serif;font-weight:500}\n.pv-hc.played{opacity:.2;text-decoration:line-through}\n\n/* Cards played to current trick \u2014 in center felt */\n.felt-N{grid-column:2;grid-row:1;display:flex;align-items:flex-end;justify-content:center}\n.felt-W{grid-column:1;grid-row:2;display:flex;align-items:center;justify-content:flex-end}\n.felt-E{grid-column:3;grid-row:2;display:flex;align-items:center;justify-content:flex-start}\n.felt-S{grid-column:2;grid-row:3;display:flex;align-items:flex-start;justify-content:center}\n.felt-ctr{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center}\n\n.felt-card{\n  background:#fff;border-radius:5px;\n  padding:3px 7px;font-size:14px;font-weight:600;\n  border:2px solid transparent;\n  box-shadow:0 2px 8px rgba(0,0,0,.35);\n  line-height:1.3;\n  transition:transform .12s;\n}\n.felt-card.lead{border-color:#ffd700}\n.felt-card.empty{background:rgba(255,255,255,.1);box-shadow:none;border:1.5px dashed rgba(255,255,255,.2);min-width:36px;min-height:28px}\n.felt-card .sS,.felt-card .sC{color:#111}\n.felt-card .sH,.felt-card .sD{color:#c0392b}\n\n/* Trick log strip */\n.pv-tricklog{display:flex;gap:4px;flex-wrap:wrap;padding-top:6px;border-top:.5px solid var(--border)}\n.tl-trick{font-size:11px;font-family:sans-serif;padding:2px 7px;border-radius:3px;background:var(--surface2);color:var(--text3);border:.5px solid var(--border)}\n.tl-trick.done{background:var(--accent2);color:var(--accent);border-color:var(--accent)}\n.tl-trick.cur{background:var(--surface);border-color:var(--border2);color:var(--text2)}\n</style>\n</head>\n<body>\n<div id=\"app\">\n  <h1>BBO Team Match Viewer</h1>\n  <p class=\"sub\">Upload a LIN file \u2014 both tables side by side with interactive play viewer</p>\n\n  <div id=\"dropzone\" ondragover=\"dzOver(event)\" ondragleave=\"dzLeave()\" ondrop=\"dzDrop(event)\">\n    <input type=\"file\" accept=\".lin,.txt\" onchange=\"fileChosen(event)\">\n    <div class=\"dz-icon\">\ud83d\udcc2</div>\n    <div class=\"dz-main\"><b>Choose a LIN file</b> or drag &amp; drop it here</div>\n    <div class=\"dz-sub\">.lin or .txt \u2014 download from a BBO team match results page</div>\n  </div>\n  <div class=\"or-row\"><hr><span>or paste LIN content</span><hr></div>\n  <textarea class=\"paste-area\" id=\"linPaste\" placeholder=\"Paste raw LIN text here\u2026\"></textarea>\n  <button class=\"btn\" onclick=\"loadFromPaste()\">Parse</button>\n  <p class=\"hint\">To get the LIN: open the BBO team match results page \u2192 look for a Download / LIN link \u2192 save and upload here.</p>\n  <div id=\"status\"></div>\n\n  <div id=\"results\">\n    <div style=\"display:flex;align-items:baseline;gap:12px;margin-bottom:3px\">\n      <div class=\"mtitle\" id=\"mtitle\"></div>\n      <button class=\"reload-btn\" onclick=\"resetUI()\">\u2190 Load another file</button>\n    </div>\n    <div class=\"mmeta\" id=\"mmeta\"></div>\n    <div class=\"bnav\" id=\"bnav\"></div>\n    <div id=\"bctr\"></div>\n    <div class=\"tbar\"><button class=\"ghost\" onclick=\"exportCmts()\">Export comments \u2193</button><button class=\"ghost\" onclick=\"saveSession()\" style=\"background:var(--accent);color:#fff;border-color:var(--accent)\">\ud83d\udcbe Save session</button></div>\n  </div>\n</div>\n<script>\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   CONSTANTS\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nconst SYM={S:'\u2660',H:'\u2665',D:'\u2666',C:'\u2663'};\nconst SC={S:'sS',H:'sH',D:'sD',C:'sC'};\nconst MD_DEALER={'1':'S','2':'W','3':'N','4':'E'};\nconst HAND_CYCLE=['S','W','N','E'];\nconst BID_SEATS=['W','N','E','S'];\nconst ALL_POS=['N','E','S','W'];\nconst VUL_LABEL={'0':'None','o':'None','-':'None','n':'N/S','e':'E/W','b':'Both'};\nconst RANK_ORDER=['A','K','Q','J','10','9','8','7','6','5','4','3','2'];\nconst IMP_BREAKS=[10,40,80,120,160,210,260,310,360,420,490,590,740,890,1090,1290,1490,1740,1990,2240,2490,2990];\n\nlet boards={};\nlet comments={};\n// Viewer states: key -> {seg, step, owners}\n// step = number of cards dealt so far (0..52 range, multiples of 1)\n// Display mode: show trick until step reaches next multiple of 4 (or user advances past it)\nconst VS={};\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   DRAG & DROP\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction dzOver(e){e.preventDefault();document.getElementById('dropzone').classList.add('over')}\nfunction dzLeave(){document.getElementById('dropzone').classList.remove('over')}\nfunction dzDrop(e){e.preventDefault();dzLeave();const f=e.dataTransfer?.files?.[0];if(f)readFile(f)}\nfunction fileChosen(e){const f=e.target.files?.[0];if(f)readFile(f)}\nfunction readFile(f){\n  const r=new FileReader();\n  r.onload=ev=>processText(ev.target.result,f.name.replace(/\\.[^.]+$/,''));\n  r.onerror=()=>setStatus('Could not read file.',true);\n  r.readAsText(f);\n}\nfunction loadFromPaste(){\n  const t=document.getElementById('linPaste').value.trim();\n  if(!t){setStatus('Nothing to parse.',true);return;}\n  processText(t,'BBO Team Match');\n}\nfunction resetUI(){\n  document.getElementById('results').style.display='none';\n  document.getElementById('status').textContent='';\n  document.getElementById('linPaste').value='';\n  document.getElementById('dropzone').querySelector('input[type=file]').value='';\n  window.scrollTo({top:0,behavior:'smooth'});\n}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   HTML HELPERS\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}\nfunction sh(s){return`<span class=\"${SC[s]}\">${SYM[s]}</span>`}\nfunction ch(c){ // card html: \"SA\" -> \u2660A\n  if(!c)return'';\n  const s=c[0].toUpperCase(),r=c.slice(1).replace('T','10');\n  if(!SC[s])return esc(c);\n  return`<span class=\"${SC[s]}\">${SYM[s]}${r}</span>`;\n}\nfunction bh(b){ // bid html\n  if(!b)return'';\n  const bl=b.toLowerCase().trim();\n  if(bl==='p'||bl==='pass')return`<span style=\"color:var(--text3)\">p</span>`;\n  // double: x or d; redouble: xx or r\n  if(bl==='xx'||bl==='r')return'<b>XX</b>';\n  if(bl==='x'||bl==='d')return'<b>X</b>';\n  const m=b.match(/^(\\d)(N|S|H|D|C)(x{0,2}|d|r)?$/i);\n  if(!m)return esc(b);\n  const su=m[2].toUpperCase();\n  const dbl=(m[3]||'').toLowerCase();\n  const dblHtml=dbl==='xx'||dbl==='r'?'<b>XX</b>':dbl==='x'||dbl==='d'?'<b>X</b>':'';\n  return`${m[1]}${su==='N'?'NT':sh(su)}${dblHtml}`;\n}\nfunction rankVal(r){const i=RANK_ORDER.indexOf(r);return i===-1?99:i}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   LIN PARSING\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction parseHand(str){\n  const h={S:[],H:[],D:[],C:[]};let cur='';\n  for(const c of str){\n    if('SHDC'.includes(c))cur=c;\n    else if(cur&&c!==',')h[cur].push(c==='T'?'10':c);\n  }\n  for(const s of['S','H','D','C'])h[s].sort((a,b)=>rankVal(a)-rankVal(b));\n  return h;\n}\nfunction isHandEmpty(h){return!h||['S','H','D','C'].every(s=>!h[s]||!h[s].length)}\nfunction reconstructHand(hands){\n  const ALL=['A','K','Q','J','10','9','8','7','6','5','4','3','2'];\n  const result={S:[],H:[],D:[],C:[]};\n  for(const suit of['S','H','D','C']){\n    const held=new Set();\n    for(const pos of ALL_POS){if(hands[pos])for(const r of(hands[pos][suit]||[]))held.add(r);}\n    result[suit]=ALL.filter(r=>!held.has(r));\n  }\n  return result;\n}\nfunction deriveContract(bids){\n  let last='',dbl=0;\n  for(const b of bids){\n    const bl=b.toLowerCase();\n    if((bl==='xx'||bl==='r')&&last)dbl=2;\n    else if((bl==='x'||bl==='d')&&last)dbl=1;\n    else if(bl!=='p'&&bl!=='pass'){last=b;dbl=0;}\n  }\n  if(!last)return'Passed';\n  return last+(dbl===2?'XX':dbl===1?'X':'');\n}\nfunction deriveDeclarer(bids,dealer){\n  if(!bids.length)return'';\n  const di=BID_SEATS.indexOf(dealer);if(di<0)return'';\n  const first={};let lastInfo=null;\n  for(let i=0;i<bids.length;i++){\n    const bl=bids[i].toLowerCase();\n    if(bl==='p'||bl==='x'||bl==='xx'||bl==='d'||bl==='r'||bl==='pass')continue;\n    const m=bids[i].match(/^\\d(N|S|H|D|C)/i);if(!m)continue;\n    const pos=BID_SEATS[(di+i)%4];\n    const strain=m[1].toUpperCase();\n    const side=(pos==='N'||pos==='S')?'NS':'EW';\n    const k=side+strain;\n    if(!first[k])first[k]=pos;\n    lastInfo={pos,strain,side};\n  }\n  if(!lastInfo)return'';\n  return first[lastInfo.side+lastInfo.strain]||lastInfo.pos;\n}\nfunction parseSegment(lin){\n  const r={qx:'',players:{S:'',W:'',N:'',E:''},board:'',vul:'0',dealer:'N',\n            hands:{},bidding:[],play:[],contract:'',declarer:'',tricks:null};\n  const parts=lin.split('|');\n  for(let i=0;i+1<parts.length;i+=2){\n    const tag=parts[i].toLowerCase().trim(),val=parts[i+1]||'';\n    switch(tag){\n      case'qx':r.qx=val;break;\n      case'pn':{const ns=val.split(',');r.players={S:ns[0]||'',W:ns[1]||'',N:ns[2]||'',E:ns[3]||''};break;}\n      case'md':{\n        r.dealer=MD_DEALER[val[0]]||'N';\n        const hs=val.slice(1).split(',');\n        // BBO LIN md| hands are ALWAYS in fixed order: S, W, N, E\n        const MD_ORDER=['S','W','N','E'];\n        for(let h=0;h<hs.length&&h<4;h++)r.hands[MD_ORDER[h]]=parseHand(hs[h]);\n        break;\n      }\n      case'ah':r.board=val.replace(/^Board\\s*/i,'').trim();break;\n      case'sv':r.vul=val||'0';break;\n      case'mb':{const bid=val.replace(/!/g,'').trim();if(bid)r.bidding.push(bid);break;}\n      case'pc':{const card=val.trim();if(card)r.play.push(card);break;}\n      case'mc':r.tricks=parseInt(val);break;\n    }\n  }\n  r.contract=deriveContract(r.bidding);\n  r.declarer=deriveDeclarer(r.bidding,r.dealer);\n  const known=ALL_POS.filter(p=>!isHandEmpty(r.hands[p]));\n  if(known.length===3){\n    const missing=ALL_POS.find(p=>isHandEmpty(r.hands[p]));\n    if(missing)r.hands[missing]=reconstructHand(r.hands);\n  }\n  return r;\n}\nfunction parseLin(linText){\n  const result={};\n  const topPnM=linText.match(/^(?:(?!qx\\|).)*pn\\|([^|]+)\\|/is);\n  const topPlayers=topPnM?topPnM[1].split(','):[];\n  const segs=linText.split(/(?=qx\\|)/i).filter(s=>s.trim());\n  for(const seg of segs){\n    const qm=seg.match(/^qx\\|([^|,\\n]+)/i);if(!qm)continue;\n    const qxVal=qm[1].trim();\n    const rm=qxVal.match(/^([oc])(\\d+)/i);if(!rm)continue;\n    const room=rm[1].toLowerCase(),boardNum=parseInt(rm[2]);\n    if(isNaN(boardNum)||boardNum<1)continue;\n    const parsed=parseSegment(seg);\n    parsed.qx=qxVal;\n    if(topPlayers.length&&!parsed.players.S&&!parsed.players.N)\n      parsed.players={S:topPlayers[0]||'',W:topPlayers[1]||'',N:topPlayers[2]||'',E:topPlayers[3]||''};\n    if(!parsed.board)parsed.board=String(boardNum);\n    if(!result[boardNum])result[boardNum]={num:boardNum,open:null,closed:null};\n    if(room==='o')result[boardNum].open=parsed;\n    else result[boardNum].closed=parsed;\n  }\n  // Determine canonical teams from first board\n  // Team A = NS pair in open room of board 1 (or earliest board)\n  const nums=Object.keys(result).map(Number).sort((a,b)=>a-b);\n  if(nums.length){\n    const first=result[nums[0]];\n    const ref=first.open||first.closed;\n    if(ref){\n      result._teamA=new Set([ref.players.N,ref.players.S].filter(Boolean));\n      result._teamB=new Set([ref.players.E,ref.players.W].filter(Boolean));\n    }\n  }\n  return result;\n}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   SCORING\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction toImp(diff){\n  const d=Math.abs(diff);let imp=0;\n  for(let i=0;i<IMP_BREAKS.length;i++){if(d>=IMP_BREAKS[i])imp=i+1;else break;}\n  return diff>0?imp:diff<0?-imp:0;\n}\nfunction isVul(dec,vul){\n  if(!vul||vul==='0'||vul==='o'||vul==='-')return false;\n  const v=vul.toLowerCase();if(v==='b')return true;\n  const ns=dec==='N'||dec==='S';\n  return(v==='n'&&ns)||(v==='e'&&!ns);\n}\nfunction calcScore(contract,declarer,tricks,vul){\n  if(!contract||contract==='Passed')return 0;\n  if(tricks===null||tricks===undefined)return null;\n  const m=contract.match(/^(\\d)(N|S|H|D|C)(X{0,2})/i);if(!m)return null;\n  const level=parseInt(m[1]),strain=m[2].toUpperCase(),dbl=m[3]?m[3].length:0;\n  const V=isVul(declarer,vul),need=level+6,diff=tricks-need;\n  if(diff<0){\n    const u=-diff;\n    if(!dbl)return V?-100*u:-50*u;\n    if(dbl===1){if(V)return-200+Math.max(0,u-1)*-300;if(u===1)return-100;if(u===2)return-300;if(u===3)return-500;return-500+(u-3)*-300;}\n    if(V)return-400+Math.max(0,u-1)*-600;if(u===1)return-200;if(u===2)return-600;if(u===3)return-1000;return-1000+(u-3)*-600;\n  }\n  const P={S:30,H:30,D:20,C:20,N:30};\n  let cp=P[strain]*level+(strain==='N'?10:0);\n  if(dbl===1)cp*=2;else if(dbl===2)cp*=4;\n  let sc=cp;\n  sc+=cp>=100?(V?500:300):50;\n  if(level===6)sc+=V?750:500;else if(level===7)sc+=V?1500:1000;\n  if(dbl===1)sc+=50;else if(dbl===2)sc+=100;\n  if(diff>0){if(!dbl)sc+=diff*P[strain];else if(dbl===1)sc+=diff*(V?200:100);else sc+=diff*(V?400:200);}\n  return sc;\n}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   STATIC RENDERERS\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction renderContract(contract,declarer){\n  if(!contract||contract==='Passed')return`<span style=\"color:var(--text3)\">Passed out</span>`;\n  const m=contract.match(/^(\\d)(N|S|H|D|C)(X{0,2})/i);if(!m)return esc(contract);\n  const su=m[2].toUpperCase();\n  return`${m[1]}${su==='N'?'NT':sh(su)}${m[3]?'<b>'+m[3].toUpperCase()+'</b>':''}${declarer?` <span style=\"color:var(--text2);font-size:12px\">by ${declarer}</span>`:''}`;\n}\nfunction handHtml(pos,hands){\n  const h=hands[pos];\n  if(!h)return`<div class=\"hpos\">${pos}</div><div style=\"color:var(--text3);font-style:italic;font-size:11px\">\u2014</div>`;\n  return`<div class=\"hpos\">${pos}</div>`+['S','H','D','C'].map(s=>`<div class=\"hsuit\"><span class=\"hsuit-s\">${sh(s)}</span><span>${(h[s]||[]).join(' ')||'\u2014'}</span></div>`).join('');\n}\nfunction renderDiagram(hands){\n  if(!hands||!Object.keys(hands).length)return'';\n  return`<div class=\"hdiag\">\n    <div class=\"hn\">${handHtml('N',hands)}</div>\n    <div class=\"hw\">${handHtml('W',hands)}</div>\n    <div class=\"hctr\"><div class=\"cmp\">N<br>W\u00b7E<br>S</div></div>\n    <div class=\"he\">${handHtml('E',hands)}</div>\n    <div class=\"hsd\">${handHtml('S',hands)}</div>\n  </div>`;\n}\nfunction renderBidding(bids,dealer){\n  if(!bids||!bids.length)return`<span class=\"nodata\">No bidding recorded</span>`;\n  const di=BID_SEATS.indexOf(dealer);if(di<0)return`<span class=\"nodata\">\u2014</span>`;\n  let html=`<table class=\"btbl\"><tr>`;\n  for(const s of BID_SEATS)html+=`<th>${s}</th>`;\n  html+='</tr><tr>';\n  for(let i=0;i<di;i++)html+='<td></td>';\n  let col=di;\n  for(let i=0;i<bids.length;i++){\n    if(col>0&&col%4===0)html+='</tr><tr>';\n    html+=`<td>${bh(bids[i])}</td>`;col++;\n  }\n  while(col%4){html+='<td></td>';col++;}\n  return html+'</tr></table>';\n}\nfunction renderRawPlay(seg){\n  const play=seg.play;\n  if(!play||!play.length)return`<span class=\"nodata\">No play recorded</span>`;\n  const owners=buildPlayOwners(seg);\n  // Build trick rows: each trick may have a different lead, show pos above each card\n  let html='';\n  for(let t=0;t<play.length;t+=4){\n    const trick=play.slice(t,t+4);\n    const trickOwners=owners.slice(t,t+4);\n    const header=trickOwners.map(p=>`<div>${p||'?'}</div>`).join('');\n    const cards=trick.map(card=>`<div>${card?ch(card):''}</div>`).join('');\n    html+=`<div class=\"prow\"><div class=\"tn\">${Math.floor(t/4)+1}</div>${cards}</div>`;\n    // Add owner row before trick if lead changed\n  }\n  // Simpler: single header won't work since lead changes \u2014 use inline pos labels\n  html='';\n  for(let t=0;t<play.length;t+=4){\n    const trick=play.slice(t,t+4);\n    const trickOwners=owners.slice(t,t+4);\n    if(t===0||(trickOwners[0]!==owners[t-4])){\n      // Show position labels for this trick's order\n      html+=`<div class=\"phd\"><div></div>${trickOwners.map(p=>`<div>${p||'?'}</div>`).join('')}</div>`;\n    }\n    const cards=trick.map(card=>`<div>${card?ch(card):''}</div>`).join('');\n    html+=`<div class=\"prow\"><div class=\"tn\">${Math.floor(t/4)+1}</div>${cards}</div>`;\n  }\n  return html;\n}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   INTERACTIVE PLAY VIEWER \u2014 BBO STYLE\n   \n   Step model:\n   - step 0  = start of board, trick 1, 0 cards played\n   - step 1  = 1st card of trick 1 visible on felt\n   - step 2  = 2nd card visible\n   - step 3  = 3rd card visible\n   - step 4  = all 4 cards visible (trick complete, still showing)\n   - step 5  = trick 1 cleared, 1st card of trick 2 on felt\n   ...and so on.\n   \n   So total steps = 13 tricks * 5 steps-per-trick = 65\n   (4 cards + 1 \"clear\" step per trick)\n   \n   Card index in play[] = Math.max(0, step - Math.floor(step/5)) adjusted below.\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\n\n// Convert step to {trickIdx, cardsInTrick, trickCleared}\n// Each trick occupies steps [t*5+1 .. t*5+4] = show cards, t*5+5 = just about to clear\n// Actually: steps 0-4 = trick 1 (0=empty,1=1card,2=2cards,3=3cards,4=4cards all showing)\n//           step 5 = trick 2 starts (trick 1 cards gone)\n// So: trickIdx = floor(step/5), cardsInTrick = step%5\n// cardsInTrick=0 means trick just cleared (new trick, 0 cards shown yet)\n// cardsInTrick 1-4 means that many cards showing on felt\n\nfunction stepInfo(step){\n  const trickIdx=Math.floor(step/5);  // which trick (0-based)\n  const inTrick=step%5;               // 0=cleared/starting, 1-4=cards on felt\n  // Total cards dealt so far into the play array\n  const cardsDealt=trickIdx*4+Math.min(inTrick,4);\n  return{trickIdx,inTrick,cardsDealt};\n}\n\nfunction maxStep(play){\n  // 13 complete tricks = step 65 (after last trick shown: step 64 = 4th card of trick 13)\n  // We stop at step where all cards have been shown (don't need the final \"clear\")\n  const numTricks=Math.floor((play||[]).length/4);\n  // Last meaningful step: all cards of last trick visible = numTricks*5 - 1\n  return numTricks>0 ? numTricks*5-1 : 0;\n}\n\n// Build a lookup: \"SuitRank\" -> owner position, from all four hands\nfunction buildCardOwnerMap(hands){\n  const map={};\n  for(const pos of ALL_POS){\n    const h=hands[pos];\n    if(!h)continue;\n    for(const suit of['S','H','D','C']){\n      for(const rank of(h[suit]||[])){\n        map[suit+rank]=pos;\n      }\n    }\n  }\n  return map;\n}\n\n// Convert a raw card string (e.g. \"SA\", \"HT\", \"D9\") to \"SuitRank\" key\nfunction cardKey(card){\n  if(!card)return'';\n  const s=card[0].toUpperCase();\n  const r=card.slice(1).replace('T','10');\n  return s+r;\n}\n\n// Pre-compute for a segment: for each card index in play[], who owns it\nfunction buildPlayOwners(seg){\n  const ownerMap=buildCardOwnerMap(seg.hands);\n  return(seg.play||[]).map(card=>ownerMap[cardKey(card)]||null);\n}\n\nfunction initViewer(seg,key){\n  if(!seg||!seg.play)return;\n  const owners=buildPlayOwners(seg);\n  VS[key]={seg,step:0,owners};\n}\n\nfunction renderPlayViewer(key){\n  const vs=VS[key];\n  if(!vs||!vs.seg)return`<span class=\"nodata\">No play data</span>`;\n  const {seg,step,owners}=vs;\n  if(!seg.play||seg.play.length===0)return`<span class=\"nodata\">No play recorded</span>`;\n\n  const {trickIdx,inTrick,cardsDealt}=stepInfo(step);\n  const totalPlay=seg.play.length;\n  const numTricks=Math.floor(totalPlay/4);\n  const mxStep=maxStep(seg.play);\n  const atEnd=step>=mxStep;\n  const atStart=step===0;\n\n  // Which cards has each player played so far (up to cardsDealt)\n  const playedSet={};\n  for(const p of ALL_POS)playedSet[p]=new Set();\n  for(let i=0;i<cardsDealt&&i<totalPlay;i++){\n    const pos=owners[i];\n    if(pos)playedSet[pos].add(cardKey(seg.play[i]));\n  }\n\n  // Cards on the current felt: cards from trickIdx*4 up to inTrick played this trick\n  // Each card goes to the position of its owner\n  const feltCards={};\n  for(const p of ALL_POS)feltCards[p]=null;\n  // Lead = owner of the first card of this trick\n  let trickLead=null;\n  if(inTrick>0){\n    const trickStart=trickIdx*4;\n    for(let i=0;i<inTrick;i++){\n      const cardIdx=trickStart+i;\n      if(cardIdx<totalPlay){\n        const pos=owners[cardIdx];\n        if(pos){\n          feltCards[pos]=seg.play[cardIdx];\n          if(i===0)trickLead=pos;\n        }\n      }\n    }\n  }\n\n  // Render a player's hand as suit rows with played cards struck\n  function handBlock(pos){\n    const h=seg.hands[pos];\n    if(!h||isHandEmpty(h))return`<div style=\"font-size:11px;color:rgba(255,255,255,.3);font-style:italic\">\u2014</div>`;\n    const played=playedSet[pos];\n    const rows=['S','H','D','C'].map(suit=>{\n      const cards=h[suit]||[];\n      if(!cards.length)return`<div class=\"pv-suit-row\"><span class=\"suit-lbl ${SC[suit]}\">${SYM[suit]}</span><span style=\"color:rgba(255,255,255,.25)\">\u2014</span></div>`;\n      const cardSpans=cards.map(r=>{\n        const gone=played.has(suit+r);\n        const isCurrent=feltCards[pos]&&feltCards[pos][0].toUpperCase()===suit&&feltCards[pos].slice(1).replace('T','10')===r;\n        const cls=isCurrent?'pv-hc current-h':gone?'pv-hc played':'pv-hc';\n        return`<span class=\"${cls}\" style=\"${gone?'opacity:.2;text-decoration:line-through':''}${isCurrent?';color:#ffd700;font-weight:700':''}\">${r}</span>`;\n      }).join(' ');\n      return`<div class=\"pv-suit-row\"><span class=\"suit-lbl ${SC[suit]}\">${SYM[suit]}</span>${cardSpans}</div>`;\n    }).join('');\n    return rows;\n  }\n\n  // Render a card on the felt\n  function feltCardHtml(pos){\n    const card=feltCards[pos];\n    const isLead=pos===trickLead&&card!==null;\n    if(!card)return`<div class=\"felt-card empty\"></div>`;\n    return`<div class=\"felt-card${isLead?' lead':''}\">${ch(card)}</div>`;\n  }\n\n  // Trick progress dots\n  const trickDots=Array.from({length:numTricks},(_,i)=>{\n    const cls=i<trickIdx?'tl-trick done':i===trickIdx?'tl-trick cur':'tl-trick';\n    return`<div class=\"${cls}\">${i+1}</div>`;\n  }).join('');\n\n  // Status line\n  const statusLine=atEnd\n    ?`All ${numTricks} tricks played${seg.tricks!==null?` \u00b7 declarer made ${seg.tricks}`:''}`\n    :`Trick ${trickIdx+1}/${numTricks} \u00b7 card ${inTrick}/4`;\n\n  return`<div class=\"pv-root\">\n    <div class=\"pv-controls\">\n      <button class=\"pv-btn\" onclick=\"pvTrick('${key}',-1)\" ${atStart?'disabled':''}>\u23ee Trick</button>\n      <button class=\"pv-btn\" onclick=\"pvStep('${key}',-1)\" ${atStart?'disabled':''}>\u25c0</button>\n      <button class=\"pv-btn\" onclick=\"pvStep('${key}',1)\" ${atEnd?'disabled':''}>\u25b6</button>\n      <button class=\"pv-btn\" onclick=\"pvTrick('${key}',1)\" ${atEnd?'disabled':''}>Trick \u23ed</button>\n      <button class=\"pv-btn\" onclick=\"pvGo('${key}',0)\">\u23ea</button>\n      <button class=\"pv-btn\" onclick=\"pvGo('${key}',${mxStep})\">\u23e9</button>\n      <button class=\"pv-btn\" onclick=\"pvAuto('${key}')\">${autoTimers[key]?'\u23f8 Stop':'\u25b6\u25b6 Auto'}</button>\n      <div class=\"pv-status\">${statusLine}</div>\n    </div>\n\n    <div class=\"pv-table\">\n      <!-- North -->\n      <div class=\"pv-hand-N\">\n        <div class=\"pv-seat-lbl\">N \u00b7 ${esc(seg.players.N||'')}</div>\n        <div style=\"font-family:Verdana,Geneva,sans-serif;font-size:12px;color:#fff;line-height:1.7\">${handBlock('N')}</div>\n      </div>\n\n      <!-- West -->\n      <div class=\"pv-hand-W\">\n        <div class=\"pv-seat-lbl\" style=\"text-align:right\">W \u00b7 ${esc(seg.players.W||'')}</div>\n        <div style=\"font-family:Verdana,Geneva,sans-serif;font-size:12px;color:#fff;line-height:1.7;text-align:right\">${handBlock('W')}</div>\n      </div>\n\n      <!-- Center felt with played cards -->\n      <div class=\"pv-felt\">\n        <div class=\"felt-N\">${feltCardHtml('N')}</div>\n        <div class=\"felt-W\">${feltCardHtml('W')}</div>\n        <div class=\"felt-ctr\">\n          <div style=\"text-align:center;font-family:sans-serif;font-size:10px;color:rgba(255,255,255,.4);line-height:1.6\">\n            ${seg.declarer?`<div style=\"color:rgba(255,255,255,.55)\">${seg.contract||''}</div><div>${seg.declarer}</div>`:''}\n          </div>\n        </div>\n        <div class=\"felt-E\">${feltCardHtml('E')}</div>\n        <div class=\"felt-S\">${feltCardHtml('S')}</div>\n      </div>\n\n      <!-- East -->\n      <div class=\"pv-hand-E\">\n        <div class=\"pv-seat-lbl\">E \u00b7 ${esc(seg.players.E||'')}</div>\n        <div style=\"font-family:Verdana,Geneva,sans-serif;font-size:12px;color:#fff;line-height:1.7\">${handBlock('E')}</div>\n      </div>\n\n      <!-- South -->\n      <div class=\"pv-hand-S\">\n        <div style=\"font-family:Verdana,Geneva,sans-serif;font-size:12px;color:#fff;line-height:1.7\">${handBlock('S')}</div>\n        <div class=\"pv-seat-lbl\" style=\"margin-top:4px\">S \u00b7 ${esc(seg.players.S||'')}</div>\n      </div>\n    </div>\n\n    <div class=\"pv-tricklog\">${trickDots}</div>\n  </div>`;\n}\n\nfunction pvRefresh(key){document.getElementById('pv-'+key).innerHTML=renderPlayViewer(key);}\nfunction pvStopAuto(key){if(autoTimers[key]){clearInterval(autoTimers[key]);delete autoTimers[key];}}\nfunction pvStep(key,delta){\n  const vs=VS[key];if(!vs)return;\n  pvStopAuto(key);\n  const mx=maxStep(vs.seg.play);\n  vs.step=Math.max(0,Math.min(mx,vs.step+delta));\n  pvRefresh(key);\n}\nfunction pvGo(key,pos){\n  const vs=VS[key];if(!vs)return;\n  pvStopAuto(key);\n  vs.step=Math.max(0,Math.min(maxStep(vs.seg.play),pos));\n  pvRefresh(key);\n}\n// Jump to end of next/prev trick (lands on cardsInTrick=4, trick fully visible)\nfunction pvTrick(key,dir){\n  pvStopAuto(key);\n  const vs=VS[key];if(!vs)return;\n  const mx=maxStep(vs.seg.play);\n  const numTricks=Math.floor(vs.seg.play.length/4);\n  const {trickIdx,inTrick}=stepInfo(vs.step);\n  let newStep;\n  if(dir>0){\n    // Show all 4 cards of current trick; if already fully shown, move to end of next trick\n    const endOfCurrent=trickIdx*5+4;\n    if(vs.step<endOfCurrent){\n      newStep=endOfCurrent;\n    } else {\n      const nextTrick=Math.min(numTricks-1,trickIdx+1);\n      newStep=nextTrick*5+4;\n    }\n  } else {\n    // Always go to end of the previous trick (all 4 cards shown)\n    // If we're at trick 0 at any point, go to step 0\n    const prevTrick=trickIdx-1;\n    if(prevTrick<0){\n      newStep=0;\n    } else {\n      newStep=prevTrick*5+4;\n    }\n  }\n  vs.step=Math.max(0,Math.min(mx,newStep));\n  pvRefresh(key);\n}\n// Auto-play: advance one card every 800ms\nconst autoTimers={};\nfunction pvAuto(key){\n  if(autoTimers[key]){\n    clearInterval(autoTimers[key]);\n    delete autoTimers[key];\n    return;\n  }\n  autoTimers[key]=setInterval(()=>{\n    const vs=VS[key];if(!vs){clearInterval(autoTimers[key]);delete autoTimers[key];return;}\n    const mx=maxStep(vs.seg.play);\n    if(vs.step>=mx){\n      clearInterval(autoTimers[key]);delete autoTimers[key];\n\n      return;\n    }\n    vs.step=Math.min(mx,vs.step+1);\n    pvRefresh(key);\n  },800);\n}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   RENDER TABLE CARD & BOARD\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction switchTab(key,tab){\n  ['bid','play','raw'].forEach(t=>{\n    document.getElementById(`tab-${t}-${key}`)?.classList.toggle('on',t===tab);\n    document.getElementById(`panel-${t}-${key}`)?.classList.toggle('on',t===tab);\n  });\n}\n\nfunction renderTableCard(seg,label,key){\n  if(!seg)return`<div class=\"tcard\"><div class=\"tchd\"><span class=\"tclbl\">${label}</span><span class=\"nodata\" style=\"font-size:12px;margin-left:auto\">No data</span></div><div style=\"padding:12px 14px\"><p class=\"nodata\">Not played at this table.</p></div></div>`;\n  const sc=seg.tricks!==null?calcScore(seg.contract,seg.declarer,seg.tricks,seg.vul):null;\n  const scStr=sc!==null?(sc>0?`+${sc}`:String(sc)):'';\n  const trStr=seg.tricks!==null?`${seg.tricks} tricks`:'';\n  initViewer(seg,key);\n  return`<div class=\"tcard\">\n    <div class=\"tchd\">\n      <span class=\"tclbl\">${label}</span>\n      <span class=\"tcctr\">${renderContract(seg.contract,seg.declarer)}</span>\n      <span class=\"tcsco\">${[scStr,trStr].filter(Boolean).join(' \u00b7 ')}</span>\n    </div>\n    <div class=\"tcbd\">\n      <div class=\"pgrid\">\n        <div><span class=\"pp\">N </span><span class=\"pn\">${esc(seg.players.N||'\u2014')}</span></div>\n        <div><span class=\"pp\">S </span><span class=\"pn\">${esc(seg.players.S||'\u2014')}</span></div>\n        <div><span class=\"pp\">E </span><span class=\"pn\">${esc(seg.players.E||'\u2014')}</span></div>\n        <div><span class=\"pp\">W </span><span class=\"pn\">${esc(seg.players.W||'\u2014')}</span></div>\n      </div>\n    </div>\n    <div class=\"viewer-wrap\">\n      <div class=\"viewer-tabs\">\n        <button id=\"tab-bid-${key}\" class=\"vtab on\" onclick=\"switchTab('${key}','bid')\">Bidding</button>\n        <button id=\"tab-play-${key}\" class=\"vtab\" onclick=\"switchTab('${key}','play')\">\u25b6 Play</button>\n        <button id=\"tab-raw-${key}\" class=\"vtab\" onclick=\"switchTab('${key}','raw')\">All tricks</button>\n      </div>\n      <div id=\"panel-bid-${key}\" class=\"viewer-panel on\">${renderBidding(seg.bidding,seg.dealer)}</div>\n      <div id=\"panel-play-${key}\" class=\"viewer-panel\"><div id=\"pv-${key}\">${renderPlayViewer(key)}</div></div>\n      <div id=\"panel-raw-${key}\" class=\"viewer-panel\">${renderRawPlay(seg)}</div>\n    </div>\n  </div>`;\n}\n\nfunction renderBoard(num){\n  const b=boards[num];\n  const vul=((b.open&&b.open.vul)||(b.closed&&b.closed.vul)||'0');\n  const vulLbl=VUL_LABEL[vul]||'None';\n  const dealerVal=(b.open&&b.open.dealer)||(b.closed&&b.closed.dealer)||'?';\n\n  // Determine which segment has Team A (the canonical NS pair from board 1)\n  // Team A always goes on the LEFT card\n  let leftSeg=b.open, rightSeg=b.closed;\n  let leftRoom='Open', rightRoom='Closed';\n  if(boards._teamA&&b.open&&b.closed){\n    const teamA=boards._teamA;\n    // Check if open room NS matches team A\n    const openNS=new Set([b.open.players.N,b.open.players.S].filter(Boolean));\n    const openOverlap=[...openNS].filter(p=>teamA.has(p)).length;\n    const closedNS=new Set([b.closed.players.N,b.closed.players.S].filter(Boolean));\n    const closedOverlap=[...closedNS].filter(p=>teamA.has(p)).length;\n    if(closedOverlap>openOverlap){\n      // Team A is NS in closed room \u2014 swap so they're always on left\n      leftSeg=b.closed; rightSeg=b.open;\n      leftRoom='Closed'; rightRoom='Open';\n    }\n  }\n\n  // Label shows room name and which side Team A is playing\n  function sideLabel(seg,room){\n    if(!seg)return room+' room';\n    const ns=new Set([seg.players.N,seg.players.S].filter(Boolean));\n    const teamA=boards._teamA||new Set();\n    const aIsNS=[...ns].some(p=>teamA.has(p));\n    const side=aIsNS?'NS':'EW';\n    return`${room} room <span style=\"font-size:10px;color:var(--text3)\">(Team A ${side})</span>`;\n  }\n\n  const sc1=leftSeg&&leftSeg.tricks!==null?calcScore(leftSeg.contract,leftSeg.declarer,leftSeg.tricks,vul):null;\n  const sc2=rightSeg&&rightSeg.tricks!==null?calcScore(rightSeg.contract,rightSeg.declarer,rightSeg.tricks,vul):null;\n  let impHtml='';\n  if(sc1!==null&&sc2!==null){\n    // IMP from Team A's perspective: NS score when A plays NS minus NS score when A plays EW (negated)\n    const aIsNSleft=leftSeg&&[...( new Set([leftSeg.players.N,leftSeg.players.S]))].some(p=>(boards._teamA||new Set()).has(p));\n    const leftScore=aIsNSleft?sc1:-sc1;\n    const rightScore=!aIsNSleft?sc2:-sc2;\n    const imp=toImp(leftScore+rightScore);\n    impHtml=`<span class=\"itag ${imp>0?'ipos':imp<0?'ineg':'izero'}\">${imp>0?'+':''}${imp} IMP</span>`;\n  }\n\n  const hands=(leftSeg&&Object.keys(leftSeg.hands||{}).length)?leftSeg.hands\n             :(rightSeg&&Object.keys(rightSeg.hands||{}).length)?rightSeg.hands:null;\n  const ck=(t,p)=>`b${num}_t${t}_${p}`;\n  const lkey=`${num}-l`, rkey=`${num}-r`;\n  return`<div class=\"bsec\" id=\"board-${num}\">\n    <div class=\"bhd\">\n      <span class=\"bnum\">Board ${num}</span>\n      <span class=\"tag ${vulLbl!=='None'?'tvul':'tnone'}\">${vulLbl} vul</span>\n      <span class=\"tag tnone\">Dealer ${dealerVal}</span>\n      ${impHtml}\n    </div>\n    ${hands?renderDiagram(hands):''}\n    <div class=\"tgrid\">\n      ${renderTableCard(leftSeg,sideLabel(leftSeg,leftRoom),lkey)}\n      ${renderTableCard(rightSeg,sideLabel(rightSeg,rightRoom),rkey)}\n    </div>\n    <div class=\"ccard\">\n      <div class=\"cchd\">Commentary</div>\n      <div class=\"ccbd\">\n        <div class=\"ccgrid\">\n          <div><div class=\"clbl\">Left \u2014 N/S</div><textarea id=\"${ck('l','ns')}\" oninput=\"saveCmt('${ck('l','ns')}',this.value)\" placeholder=\"Notes for N/S (left table)\u2026\">${esc(comments[ck('l','ns')]||'')}</textarea></div>\n          <div><div class=\"clbl\">Left \u2014 E/W</div><textarea id=\"${ck('l','ew')}\" oninput=\"saveCmt('${ck('l','ew')}',this.value)\" placeholder=\"Notes for E/W (left table)\u2026\">${esc(comments[ck('l','ew')]||'')}</textarea></div>\n          <div><div class=\"clbl\">Right \u2014 N/S</div><textarea id=\"${ck('r','ns')}\" oninput=\"saveCmt('${ck('r','ns')}',this.value)\" placeholder=\"Notes for N/S (right table)\u2026\">${esc(comments[ck('r','ns')]||'')}</textarea></div>\n          <div><div class=\"clbl\">Right \u2014 E/W</div><textarea id=\"${ck('r','ew')}\" oninput=\"saveCmt('${ck('r','ew')}',this.value)\" placeholder=\"Notes for E/W (right table)\u2026\">${esc(comments[ck('r','ew')]||'')}</textarea></div>\n        </div>\n      </div>\n    </div>\n  </div>`;\n}\n\n/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n   MAIN FLOW\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 */\nfunction setStatus(msg,err){const el=document.getElementById('status');el.textContent=msg;el.className=err?'err':'';}\n\nfunction processText(text,title){\n  setStatus('Parsing\u2026');\n  let lin=text.trim();\n  if(lin.startsWith('<')||lin.includes('<html')){\n    const jsV=lin.match(/(?:var\\s+)?lin\\s*=\\s*[\"']([^\"']{100,})[\"']/i);\n    if(jsV)lin=jsV[1].replace(/\\\\n/g,'\\n');\n    else{\n      const urlV=lin.match(/[?&]lin=((?:vg|pn|qx)[^\"'&\\s<>]{50,})/i);\n      if(urlV){try{lin=decodeURIComponent(urlV[1]);}catch(e){lin=urlV[1];}}\n      else{setStatus('No LIN data found in pasted content.',true);return;}\n    }\n  }\n  const parsed=parseLin(lin);\n  const nums=Object.keys(parsed).map(Number).filter(n=>!isNaN(n)).sort((a,b)=>a-b);\n  if(!nums.length){setStatus('Could not parse any boards. Check the LIN file has qx| tags.',true);return;}\n  boards=parsed;\n  window._rawLin=lin;\n  window._matchTitle=title||'BBO Team Match';\n  document.getElementById('mtitle').textContent=window._matchTitle;\n  document.getElementById('mmeta').textContent=`${nums.length} board${nums.length!==1?'s':''} \u00b7 open & closed room`;\n  document.getElementById('bnav').innerHTML=nums.map((n,i)=>`<button class=\"nb${i===0?' on':''}\" onclick=\"goBoard(${n},this)\">B${n}</button>`).join('');\n  document.getElementById('bctr').innerHTML=nums.map(n=>renderBoard(n)).join('');\n  for(const[k,v]of Object.entries(comments)){const el=document.getElementById(k);if(el&&!el.value)el.value=v;}\n  document.getElementById('results').style.display='block';\n  window.scrollTo({top:document.getElementById('results').offsetTop-20,behavior:'smooth'});\n  setStatus('');\n}\nfunction goBoard(num,btn){\n  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));\n  btn.classList.add('on');\n  document.getElementById('board-'+num)?.scrollIntoView({behavior:'smooth',block:'start'});\n}\nfunction saveCmt(k,v){\n  comments[k]=v;try{localStorage.setItem('bbo_cmts',JSON.stringify(comments));}catch(e){}\n}\nfunction saveSession(){\n  if(!window._rawLin){alert('No match loaded yet.');return;}\n  // Store LIN + comments as JSON in a <script type=\"application/json\"> tag.\n  // This avoids ALL escaping issues \u2014 JSON.stringify handles everything safely.\n  const payload=JSON.stringify({\n    lin:window._rawLin,\n    title:window._matchTitle||'BBO Team Match',\n    cmts:comments\n  });\n  // Read viewer source from the hidden #viewer-src element (injected at page load by Python)\n  const viewerSrc=document.getElementById('viewer-src');\n  if(!viewerSrc){alert('Viewer source element not found. Please re-download bbo-team-viewer.html.');return;}\n  const base=viewerSrc.textContent;\n  // Build autoload block that reads the payload and fires processText\n  const autoload=[\n    '<scr'+'ipt id=\"session-autoload\">',\n    '(function(){',\n    'var p=JSON.parse(document.getElementById(\"session-payload\").textContent);',\n    'Object.assign(comments,p.cmts);',\n    'try{localStorage.setItem(\"bbo_cmts\",JSON.stringify(comments));}catch(e){}',\n    'window.addEventListener(\"load\",function(){processText(p.lin,p.title);},{once:true});',\n    '})();',\n    '</'+'script>'\n  ].join('\\n');\n  const payloadTag='<scr'+'ipt id=\"session-payload\" type=\"application/json\">\\n'+payload+'\\n</'+'script>';\n  const out=base+'\\n'+payloadTag+'\\n'+autoload+'\\n';\n  const fname=(window._matchTitle||'bbo-match').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-session.html';\n  const a=Object.assign(document.createElement('a'),{\n    href:URL.createObjectURL(new Blob([out],{type:'text/html'})),\n    download:fname\n  });\n  a.click();\n}\n\nfunction exportCmts(){\n  const nums=Object.keys(boards).map(Number).sort((a,b)=>a-b);\n  let out=`BBO Team Match Commentary\\n${'='.repeat(36)}\\n\\n`;let any=false;\n  for(const n of nums){\n    const keys=[`b${n}_t1_ns`,`b${n}_t1_ew`,`b${n}_t2_ns`,`b${n}_t2_ew`];\n    const lbls=['Table 1 N/S','Table 1 E/W','Table 2 N/S','Table 2 E/W'];\n    if(keys.some(k=>comments[k]?.trim())){\n      out+=`Board ${n}\\n${'-'.repeat(20)}\\n`;\n      keys.forEach((k,i)=>{if(comments[k]?.trim())out+=`${lbls[i]}: ${comments[k].trim()}\\n`;});\n      out+='\\n';any=true;\n    }\n  }\n  if(!any)out+='(no comments yet)\\n';\n  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([out],{type:'text/plain'})),download:'bbo-match-commentary.txt'});\n  a.click();\n}\ntry{const s=localStorage.getItem('bbo_cmts');if(s)comments=JSON.parse(s);}catch(e){}\n</script>\n</body>\n</html>\n"
+</script>
+</body>
+</html>
