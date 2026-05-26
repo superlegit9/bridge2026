@@ -254,6 +254,7 @@ textarea:focus{border-color:var(--accent);background:var(--surface)}
     loadScript('https://cdn.jsdelivr.net/npm/firebase@10.12.0/firebase-database-compat.min.js',function(){
       window._firebaseReady=true;
       if(window._pendingFbInit)window._pendingFbInit();
+      if(window._pendingCloudLoad)window._pendingCloudLoad();
     });
   });
 })();
@@ -330,6 +331,11 @@ function fbSaveCmt(k,v){
 function fbSaveLin(lin,title){
   if(!fbDb||!fbMatchKey)return;
   fbDb.ref('matches/'+fbMatchKey+'/meta').set({lin,title,updated:Date.now()});
+}
+
+function fbSavePbn(pbn,title){
+  if(!fbDb||!fbMatchKey)return;
+  fbDb.ref('matches/'+fbMatchKey+'/meta').set({pbn,title,updated:Date.now()});
 }
 
 function syncCommentsToDOM(){
@@ -1218,54 +1224,55 @@ function parsePbn(pbnText){
       }
     }
 
-    // Play — PBN gives one row per trick, in play order starting from leader
-    // [Play "E"] means E leads trick 1; each row has 4 cards in seat order from leader
-    // We need to track who wins each trick to determine next leader
+    // PBN play rows are in fixed W,N,E,S order per trick.
+    // We reorder each trick so the leader's card comes first (matching LIN format),
+    // so buildPlayOwners correctly identifies the leader as owners[trickStart+0].
     const play=[];
     const playTagM=seg.match(/\[Play\s+"([^"]*)"\]/i);
-    const playM=seg.match(/\[Play\s+"[^"]*"\]\n((?:[^\[].*\n?)*)/i);
-    if(playM&&playTagM){
-      const ALL_POS=['N','E','S','W'];
+    const playBodyM=seg.match(/\[Play\s+"[^"]*"\]\n((?:[^\[].*\n?)*)/i);
+    if(playBodyM&&playTagM){
+      const WNES=['W','N','E','S']; // fixed PBN row order
       const contractForPlay=contractRaw.toUpperCase();
       const trumpM=contractForPlay.match(/^\d([NSHDC])/i);
       const trump=trumpM&&trumpM[1].toUpperCase()!=='N'?trumpM[1].toUpperCase():null;
+      let leader=playTagM[1].toUpperCase();
 
-      let leader=playTagM[1].toUpperCase(); // who leads trick 1
-
-      for(const line of playM[1].split('\n')){
+      for(const line of playBodyM[1].split('\n')){
         if(line.trim()==='*'||line.startsWith('['))break;
-        const toks=line.trim().split(/\s+/).filter(t=>t&&t!=='-'&&t!=='*');
-        if(!toks.length)continue;
+        const raw=line.trim();if(!raw)continue;
+        const toks=raw.split(/\s+/);
 
-        // Parse cards for this trick
-        const trickCards=[];
-        for(const tok of toks){
+        // Parse 4 cards in fixed W,N,E,S order
+        const wnes=[null,null,null,null];
+        for(let i=0;i<4;i++){
+          const tok=toks[i]||'-';
+          if(tok==='-'||tok==='*')continue;
           const cm=tok.match(/^([SHDC])([AKQJT98765432])/i);
-          if(cm)trickCards.push(cm[1].toUpperCase()+(cm[2].toUpperCase()==='T'?'10':cm[2].toUpperCase()));
+          if(cm)wnes[i]=cm[1].toUpperCase()+(cm[2].toUpperCase()==='T'?'10':cm[2].toUpperCase());
         }
-        if(!trickCards.length)continue;
 
-        // Assign positions: leader plays first, then NESW order
-        const leaderIdx=ALL_POS.indexOf(leader);
-        const positions=trickCards.map((_,i)=>ALL_POS[(leaderIdx+i)%4]);
+        // Reorder so leader's card is first, then continue clockwise (WNES cycle)
+        const leaderIdx=WNES.indexOf(leader);
+        const ordered=[];
+        for(let i=0;i<4;i++)ordered.push(wnes[(leaderIdx+i)%4]);
 
-        // Add cards to play array in trick order (already correct)
-        for(const card of trickCards)play.push(card);
+        // Push leader-first cards to play array (matching LIN format)
+        for(const card of ordered){if(card!==null)play.push(card);}
 
-        // Determine trick winner for next lead
-        // Winner = highest trump if any played, else highest card of led suit
-        const ledSuit=trickCards[0][0];
-        let winnerIdx=0;
-        for(let i=1;i<trickCards.length;i++){
-          const card=trickCards[i];
-          const cardSuit=card[0];
-          const winnerCard=trickCards[winnerIdx];
-          const winnerSuit=winnerCard[0];
-          const winsWithTrump=trump&&cardSuit===trump&&winnerSuit!==trump;
-          const winsOnSuit=cardSuit===winnerSuit&&rankVal(card.slice(1))<rankVal(winnerCard.slice(1));
-          if(winsWithTrump||winsOnSuit)winnerIdx=i;
+        // Determine winner using the WNES-indexed cards
+        let winnerWnesIdx=leaderIdx; // start assuming leader wins
+        const ledSuit=wnes[leaderIdx]?wnes[leaderIdx][0]:null;
+        for(let i=0;i<4;i++){
+          if(i===leaderIdx||!wnes[i])continue;
+          const card=wnes[i],wcrd=wnes[winnerWnesIdx];
+          if(!wcrd){winnerWnesIdx=i;continue;}
+          const cs=card[0],ws=wcrd[0];
+          const cr=card.slice(1),wr=wcrd.slice(1);
+          const winsWithTrump=trump&&cs===trump&&ws!==trump;
+          const winsOnSuit=cs===ws&&rankVal(cr)<rankVal(wr);
+          if(winsWithTrump||winsOnSuit)winnerWnesIdx=i;
         }
-        leader=positions[winnerIdx];
+        leader=WNES[winnerWnesIdx];
       }
     }
 
@@ -1427,9 +1434,11 @@ function processText(text,title){
     if(!parsed||!Object.keys(parsed).filter(k=>!isNaN(Number(k))).length){
       setStatus('Could not parse PBN file.',true);return;
     }
-    window._rawLin=''; // no LIN for PBN files
+    window._rawPbn=input;
+    window._rawLin='';
   } else {
     let lin=input;
+    window._rawPbn='';
     if(lin.startsWith('<')||lin.includes('<html')){
       const jsV=lin.match(/(?:var\s+)?lin\s*=\s*["']([^"']{100,})["']/i);
       if(jsV)lin=jsV[1].replace(/\\n/g,'\n');
@@ -1451,7 +1460,12 @@ function processText(text,title){
 
   document.getElementById('mtitle').textContent=window._matchTitle;
   fbInit(window._matchTitle);
-  if(window._rawLin)fbSaveLin(window._rawLin,window._matchTitle);
+  const doSave=()=>{
+    if(window._rawLin)fbSaveLin(window._rawLin,window._matchTitle);
+    else if(window._rawPbn)fbSavePbn(window._rawPbn,window._matchTitle);
+  };
+  if(fbDb)doSave();
+  else window._pendingLocalSync=doSave;
   document.getElementById('mmeta').textContent=`${nums.length} board${nums.length!==1?'s':''} · open & closed room`;
   document.getElementById('bnav').innerHTML=nums.map((n,i)=>`<button class="nb${i===0?' on':''}" onclick="goBoard(${n},this)">B${n}</button>`).join('');
   document.getElementById('bctr').innerHTML=nums.map(n=>renderBoard(n)).join('');
@@ -1547,7 +1561,7 @@ function loadFromCloud(){
     });
   };
   if(window._firebaseReady){doLoad();}
-  else{window._pendingFbInit=doLoad;}
+  else{window._pendingCloudLoad=doLoad;}
 }
 
 function showCloudPicker(keys,data){
@@ -1611,11 +1625,14 @@ function cloudLoad(key){
   document.getElementById('cloud-picker-overlay')?.remove();
   fbDb.ref('matches/'+key).once('value',snap=>{
     const m=snap.val()||{};
-    if(m.meta&&m.meta.lin){
+    const data=m.meta?.pbn||m.meta?.lin||null;
+    if(data){
       if(m.comments)Object.assign(comments,m.comments);
-      processText(m.meta.lin,m.meta.title||key);
+      processText(data,m.meta.title||key);
     } else {
-      alert('No LIN data found for this match.');
+      // meta missing or has no file data — show what keys exist for debugging
+      const metaKeys=m.meta?Object.keys(m.meta).join(', '):'(none)';
+      alert('No match data found for "'+key+'".\nMeta fields: '+metaKeys+'\n\nThis match may have been saved before cloud sync was working. Try re-uploading the file.');
     }
   });
 }
