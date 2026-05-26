@@ -761,7 +761,10 @@ function cardKey(card){
 // Pre-compute for a segment: for each card index in play[], who owns it
 function buildPlayOwners(seg){
   const ownerMap=buildCardOwnerMap(seg.hands);
-  return(seg.play||[]).map(card=>ownerMap[cardKey(card)]||null);
+  return(seg.play||[]).map(card=>{
+    if(!card||card==='--')return null;
+    return ownerMap[cardKey(card)]||null;
+  });
 }
 
 function initViewer(seg,key){
@@ -1256,8 +1259,12 @@ function parsePbn(pbnText){
         const ordered=[];
         for(let i=0;i<4;i++)ordered.push(wnes[(leaderIdx+i)%4]);
 
-        // Push leader-first cards to play array (matching LIN format)
-        for(const card of ordered){if(card!==null)play.push(card);}
+        // Push leader-first cards; use placeholder for missing cards so trick boundaries stay at multiples of 4
+        for(let i=0;i<4;i++){
+          const card=ordered[i];
+          if(card!==null)play.push(card);
+          else play.push('--'); // placeholder keeps trick boundary correct
+        }
 
         // Determine winner using the WNES-indexed cards
         let winnerWnesIdx=leaderIdx; // start assuming leader wins
@@ -1459,13 +1466,12 @@ function processText(text,title){
   comments={};
 
   document.getElementById('mtitle').textContent=window._matchTitle;
-  fbInit(window._matchTitle);
   const doSave=()=>{
     if(window._rawLin)fbSaveLin(window._rawLin,window._matchTitle);
     else if(window._rawPbn)fbSavePbn(window._rawPbn,window._matchTitle);
   };
-  if(fbDb)doSave();
-  else window._pendingLocalSync=doSave;
+  window._pendingLocalSync=doSave;
+  fbInit(window._matchTitle);
   document.getElementById('mmeta').textContent=`${nums.length} board${nums.length!==1?'s':''} · open & closed room`;
   document.getElementById('bnav').innerHTML=nums.map((n,i)=>`<button class="nb${i===0?' on':''}" onclick="goBoard(${n},this)">B${n}</button>`).join('');
   document.getElementById('bctr').innerHTML=nums.map(n=>renderBoard(n)).join('');
@@ -1485,7 +1491,8 @@ function renameMatch(){
   fbDb.ref('matches/'+fbMatchKey).once('value',snap=>{
     const data=snap.val();
     if(!data){setStatus('No data found.',true);return;}
-    if(data.meta)data.meta.title=newName.trim();
+    if(!data.meta)data.meta={};
+    data.meta.title=newName.trim();
     fbDb.ref('matches/'+newKey).set(data).then(()=>{
       return fbDb.ref('matches/'+fbMatchKey).remove();
     }).then(()=>{
